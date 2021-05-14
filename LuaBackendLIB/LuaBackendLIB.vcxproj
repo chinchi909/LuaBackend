@@ -88,12 +88,15 @@
     <ClInclude Include="include\ConsoleLib.h" />
     <ClInclude Include="include\CRC.h" />
     <ClInclude Include="include\DCInstance.h" />
+    <ClInclude Include="include\GitRequest.h" />
+    <ClInclude Include="include\json\json.hpp" />
     <ClInclude Include="include\LuaBackend.h" />
     <ClInclude Include="include\MemoryLib.h" />
     <ClInclude Include="include\Operator32Lib.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\DCInstance.cpp" />
+    <ClCompile Include="source\GitRequest.cpp" />
     <ClCompile Include="source\LuaBackend.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

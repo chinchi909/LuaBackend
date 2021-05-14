@@ -38,8 +38,8 @@ class LuaBackend
 		}
 
 		void SetFunctions(LuaState*);
-		void LoadScripts(const char*);
-		LuaBackend(const char*);
+		void LoadScripts(const char*, uint64_t);
+		LuaBackend(const char*, uint64_t);
 };
 
 #endif

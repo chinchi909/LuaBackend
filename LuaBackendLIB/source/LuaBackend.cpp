@@ -3,14 +3,14 @@
 
 string _pathStr = "";
 
-LuaBackend::LuaBackend(const char* ScrPath)
+LuaBackend::LuaBackend(const char* ScrPath, uint64_t BaseInput)
 {
 	frameLimit = 16;
 	loadedScripts = vector<LuaScript*>();
-	LoadScripts(ScrPath);
+	LoadScripts(ScrPath, BaseInput);
 }
 
-void LuaBackend::LoadScripts(const char* ScrPath)
+void LuaBackend::LoadScripts(const char* ScrPath, uint64_t BaseInput)
 {
 	loadedScripts.clear();
 
@@ -55,9 +55,10 @@ void LuaBackend::LoadScripts(const char* ScrPath)
 		string _pathFull = MemoryLib::PName;
 		auto _pathExe = _pathFull.substr(_pathFull.find_last_of("\\") + 1);
 
-		_script->luaState["ENGINE_VERSION"] = 4.2;
+		_script->luaState["ENGINE_VERSION"] = 4.3;
 		_script->luaState["ENGINE_TYPE"] = "BACKEND";
 		_script->luaState["GAME_ID"] = CRC::Calculate(_pathExe.c_str(), _pathExe.length(), CRC::CRC_32());
+		_script->luaState["BASE_ADDR"] = BaseInput;
 
 		string _filePath(_path.path().u8string());
 

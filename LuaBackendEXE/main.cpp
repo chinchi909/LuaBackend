@@ -2,8 +2,11 @@
 #include <thread>
 #include <future>
 #include <iostream>
-#include <windows.h>
 #include <filesystem>
+
+#include <windows.h>
+#include <wininet.h>
+#include <GitRequest.h>
 
 #include <MemoryLib.h>
 #include <LuaBackend.h>
@@ -59,11 +62,29 @@ void _execute(future<void> futureObj)
 
 int main()
 {
+	cout << "Checking for updates..." << "\n";
+
+	switch (GitRequest::GetVersion())
+	{
+	    default:
+		    cout << "Unable to get update... Proceeding..." << "\n";
+			break;
+	    case 0:
+		    cout << "Version up-to-date. Proceeding..." << "\n";
+			break;
+		case 1:
+			cout << "Update found! Updating..." << "\n"; 
+			cout << "Please be patient. The app will restart itself after completion." << "\n";
+			break;
+	}
+
+	system("cls");
+	
 	cout << "======================================" << "\n";
-	cout << "========= LuaBackend | v1.20 =========" << "\n";
+	cout << "========= LuaBackend | v1.30 =========" << "\n";
 	cout << "====== Copyright 2021 - TopazTK ======" << "\n";
 	cout << "======================================" << "\n";
-	cout << "=== Compatible with LuaEngine v4.1 ===" << "\n";
+	cout << "=== Compatible with LuaEngine v4.2 ===" << "\n";
 	cout << "========== External Version ==========" << "\n";
 	cout << "======================================" << "\n\n";
 
@@ -145,8 +166,8 @@ int main()
 	if (!filesystem::exists(_scriptPath))
 		filesystem::create_directory(_scriptPath);
 
-	ConsoleLib::MessageOutput("Hooking and initializing LuaEngine v4.1...\n\n", 0);
-	_backend = new LuaBackend(_scriptPath.c_str());
+	ConsoleLib::MessageOutput("Hooking and initializing LuaEngine v4.2...\n\n", 0);
+	_backend = new LuaBackend(_scriptPath.c_str(), MemoryLib::ExecAddress + MemoryLib::BaseAddress);
 	_backend->frameLimit = config.hzRefresh;
 
 	ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);

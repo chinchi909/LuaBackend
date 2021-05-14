@@ -19,12 +19,12 @@
     <Filter Include="Sources\External">
       <UniqueIdentifier>{d7f0aa77-38f3-4dab-a36c-0b30c38d0c65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Headers\Backend\Libraries">
+      <UniqueIdentifier>{404096ea-80ca-4bba-bd00-a29665377c02}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\LuaBackend.h">
-      <Filter>Headers\Backend</Filter>
-    </ClInclude>
-    <ClInclude Include="include\MemoryLib.h">
       <Filter>Headers\Backend</Filter>
     </ClInclude>
     <ClInclude Include="include\CRC.h">
@@ -34,10 +34,19 @@
       <Filter>Headers\External</Filter>
     </ClInclude>
     <ClInclude Include="include\Operator32Lib.h">
-      <Filter>Headers\Backend</Filter>
+      <Filter>Headers\Backend\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MemoryLib.h">
+      <Filter>Headers\Backend\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="include\ConsoleLib.h">
+      <Filter>Headers\Backend\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GitRequest.h">
       <Filter>Headers\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="include\json\json.hpp">
+      <Filter>Headers\External</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -46,6 +55,9 @@
     </ClCompile>
     <ClCompile Include="source\DCInstance.cpp">
       <Filter>Sources\External</Filter>
+    </ClCompile>
+    <ClCompile Include="source\GitRequest.cpp">
+      <Filter>Sources\Backend</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

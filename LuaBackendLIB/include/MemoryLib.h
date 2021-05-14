@@ -14,10 +14,10 @@ class MemoryLib
     private:
         static inline STARTUPINFOA _sInfo;
         static inline PROCESS_INFORMATION _pInfo;
-        static inline uint64_t _execAddress;
         static inline bool _bigEndian = false;
 
     public:
+        static inline uint64_t ExecAddress;
         static inline uint64_t BaseAddress;
         static inline DWORD PIdentifier = NULL;
         static inline HANDLE PHandle = NULL;
@@ -107,7 +107,7 @@ class MemoryLib
         GetProcessImageFileNameA(MemoryLib::PHandle, PName, MAX_PATH);
         BaseAddress = InputAddress;
 
-        _execAddress = (uint64_t)FindBaseAddr(PHandle, PName);
+        ExecAddress = (uint64_t)FindBaseAddr(PHandle, PName);
         _bigEndian = InputEndian;
 
         if (PHandle == NULL)
@@ -124,7 +124,7 @@ class MemoryLib
         GetProcessImageFileNameA(MemoryLib::PHandle, PName, MAX_PATH);
 
         BaseAddress = InputAddress;
-        _execAddress = (uint64_t)FindBaseAddr(PHandle, PName);
+        ExecAddress = (uint64_t)FindBaseAddr(PHandle, PName);
     };
 
     static uint8_t ReadByte(uint64_t Address) { return ReadBytes(Address, 1)[0]; }
@@ -388,7 +388,7 @@ class MemoryLib
     
     static void WriteExec(uint64_t Address, vector<uint8_t> Input)
     {
-        WriteProcessMemory(PHandle, (void*)(Address + _execAddress), Input.data(), Input.size(), 0);
+        WriteProcessMemory(PHandle, (void*)(Address + ExecAddress), Input.data(), Input.size(), 0);
     }
 
     static uint64_t GetPointer(uint64_t Address, uint64_t Offset)
