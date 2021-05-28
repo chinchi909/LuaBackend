@@ -6,4 +6,5 @@ LuaBackend/scripts/*
 LuaBackendEXE/x64/*
 LuaBackendLIB/x64/*
 LuaBackendDLL/x64/*
+LuaBackendHookDLL/x64/*
 x64/*
