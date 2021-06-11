@@ -96,7 +96,7 @@ extern "C"
 		_processID = ProcessID;
 		_processH = ProcessH;
 		_targetAddress = TargetAddress;
-		if (!_scrPath.empty())
+		if (_scrPath.empty())
 		{
 			_scrPath = string(ScriptPath);
 		}
