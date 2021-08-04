@@ -1,12 +1,22 @@
 #include <chrono>
 #include <iostream>
 #include <filesystem>
+#include <string_view>
+#include <vector>
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shlobj.h>
 
 #include <MemoryLib.h>
 #include <LuaBackend.h>
 #include <mIni/ini.h>
+
+#include "x86_64.h"
+
+using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
+
+DirectInput8CreateProc createProc = nullptr;
 
 extern "C"
 {
@@ -68,9 +78,6 @@ extern "C"
 
 	int __declspec(dllexport) EntryLUA(int ProcessID, HANDLE ProcessH, uint64_t TargetAddress, const char* ScriptPath)
 	{
-		AllocConsole();
-		freopen("CONOUT$", "w", stdout);
-
 		ShowWindow(GetConsoleWindow(), SW_HIDE);
 
 		cout << "======================================" << "\n";
@@ -127,78 +134,75 @@ extern "C"
 			auto _msTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _msClock).count();
 			auto _sTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _sClock).count();
 
-			if (_msTime > _backend->frameLimit)
-			{
-				if (GetKeyState(VK_F3) & 0x8000 && _funcThreeState)
-				{
-					switch (_backend->frameLimit)
-					{
-					case 16:
-						_backend->frameLimit = 8;
-						ConsoleLib::MessageOutput("Frequency set to 120Hz.\n", 0);
-						break;
-					case 8:
-						_backend->frameLimit = 4;
-						ConsoleLib::MessageOutput("Frequency set to 240Hz.\n", 0);
-						break;
-					case 4:
-						_backend->frameLimit = 16;
-						ConsoleLib::MessageOutput("Frequency set to 60Hz.\n", 0);
-						break;
-					}
+            if (GetKeyState(VK_F3) & 0x8000 && _funcThreeState)
+            {
+                switch (_backend->frameLimit)
+                {
+                case 16:
+                    _backend->frameLimit = 8;
+                    ConsoleLib::MessageOutput("Frequency set to 120Hz.\n", 0);
+                    break;
+                case 8:
+                    _backend->frameLimit = 4;
+                    ConsoleLib::MessageOutput("Frequency set to 240Hz.\n", 0);
+                    break;
+                case 4:
+                    _backend->frameLimit = 16;
+                    ConsoleLib::MessageOutput("Frequency set to 60Hz.\n", 0);
+                    break;
+                }
 
-					_sTime = 0;
-					_funcThreeState = false;
-					_sClock = chrono::high_resolution_clock::now();
-				}
-				if (GetKeyState(VK_F2) & 0x8000 && _funcTwoState)
-				{
-					if (_showConsole)
-					{
-						ShowWindow(GetConsoleWindow(), SW_HIDE);
-						_showConsole = false;
-					}
+                _sTime = 0;
+                _funcThreeState = false;
+                _sClock = chrono::high_resolution_clock::now();
+            }
+            if (GetKeyState(VK_F2) & 0x8000 && _funcTwoState)
+            {
+                if (_showConsole)
+                {
+                    ShowWindow(GetConsoleWindow(), SW_HIDE);
+                    _showConsole = false;
+                }
 
-					else
-					{
-						ShowWindow(GetConsoleWindow(), SW_RESTORE);
-						_showConsole = true;
-					}
+                else
+                {
+                    ShowWindow(GetConsoleWindow(), SW_RESTORE);
+                    _showConsole = true;
+                }
 
-					_sTime = 0;
-					_funcTwoState = false;
-					_sClock = chrono::high_resolution_clock::now();
-				}
-				if (GetKeyState(VK_F1) & 0x8000 && _funcOneState)
-				{
-					_requestedReset = true;
+                _sTime = 0;
+                _funcTwoState = false;
+                _sClock = chrono::high_resolution_clock::now();
+            }
+            if (GetKeyState(VK_F1) & 0x8000 && _funcOneState)
+            {
+                _requestedReset = true;
 
-					_sTime = 0;
-					_funcOneState = false;
-					_sClock = chrono::high_resolution_clock::now();
-				}
+                _sTime = 0;
+                _funcOneState = false;
+                _sClock = chrono::high_resolution_clock::now();
+            }
 
-				for (int i = 0; i < _backend->loadedScripts.size(); i++)
-				{
-					auto _script = _backend->loadedScripts[i];
+            for (int i = 0; i < _backend->loadedScripts.size(); i++)
+            {
+                auto _script = _backend->loadedScripts[i];
 
-					if (_script->frameFunction)
-					{
-						auto _result = _script->frameFunction();
+                if (_script->frameFunction)
+                {
+                    auto _result = _script->frameFunction();
 
-						if (!_result.valid())
-						{
-							sol::error _err = _result;
-							ConsoleLib::MessageOutput(_err.what(), 3);
-							printf("\n\n");
+                    if (!_result.valid())
+                    {
+                        sol::error _err = _result;
+                        ConsoleLib::MessageOutput(_err.what(), 3);
+                        printf("\n\n");
 
-							_backend->loadedScripts.erase(_backend->loadedScripts.begin() + i);
-						}
-					}
-				}
+                        _backend->loadedScripts.erase(_backend->loadedScripts.begin() + i);
+                    }
+                }
+            }
 
-				_msClock = chrono::high_resolution_clock::now();
-			}
+            _msClock = chrono::high_resolution_clock::now();
 
 			if (_sTime > 250)
 			{
@@ -227,4 +231,132 @@ extern "C"
 	{
 		return 128;
 	}
+}
+
+extern "C" void onFrame() {
+    if (!CheckLUA()) {
+        std::cout << "CheckLua failed!\n";
+    } else {
+        ExecuteLUA();
+    }
+}
+
+void hookGame(uint64_t moduleAddress) {
+    static_assert(sizeof(uint64_t) == sizeof(uintptr_t));
+
+    uint8_t relocated[0xF];
+    uintptr_t hookStart = moduleAddress + 0x14C845;
+    uintptr_t hookEnd = hookStart + sizeof(relocated);
+
+    DWORD originalProt = 0;
+    VirtualProtect((void*)hookStart, sizeof(relocated), PAGE_EXECUTE_READWRITE, &originalProt);
+    std::memcpy((void*)relocated, (void*)hookStart, sizeof(relocated));
+
+    uint8_t func[] = {
+        PUSHF_1, PUSHF_2,
+        PushRax,
+        PushRdi,
+        PushRbp,
+        PushRbx,
+        PushR12_1, PushR12_2,
+        PushR13_1, PushR13_2,
+        PushR14_1, PushR14_2,
+        PushR15_1, PushR15_2,
+        0x48, 0x83, 0xEC, 0x0E, // sub rsp, 0x0E
+        CALL((uintptr_t)&onFrame),
+        0x48, 0x83, 0xC4, 0x0E, // sub rsp, 0x0E
+        PopR15_1, PopR15_2,
+        PopR14_1, PopR14_2,
+        PopR13_1, PopR13_2,
+        PopR12_1, PopR12_2,
+        PopRbx,
+        PopRbp,
+        PopRdi,
+        PopRax,
+        POPF_1, POPF_2,
+        JUMP_TO(hookEnd),
+    };
+
+    uint64_t funcSize = sizeof(relocated) + sizeof(func);
+    void* funcPtr = VirtualAlloc(nullptr, funcSize, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    uintptr_t funcAddress = (uintptr_t)funcPtr;
+
+    uint8_t patch[] = {
+        JUMP_TO(funcAddress),
+        NOP,
+    };
+
+    static_assert(sizeof(relocated) == sizeof(patch));
+    std::memcpy((void*)hookStart, (void*)patch, sizeof(patch));
+
+    std::memcpy((void*)funcAddress, relocated, sizeof(relocated));
+    std::memcpy((void*)(funcAddress + sizeof(relocated)), func, sizeof(func));
+
+    VirtualProtect((void*)hookStart, sizeof(relocated), originalProt, &originalProt);
+}
+
+DWORD WINAPI entry(LPVOID lpParameter) {
+    char modulePath[MAX_PATH];
+    GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
+
+    std::string_view moduleName = modulePath;
+    std::size_t pos = moduleName.rfind("\\");
+    if (pos != std::string_view::npos) {
+        moduleName.remove_prefix(pos + 1);
+    }
+
+    if (moduleName != "KINGDOM HEARTS II FINAL MIX.exe") return 0;
+
+    AllocConsole();
+    std::freopen("CONOUT$", "w", stdout);
+
+    uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
+    uint64_t baseAddress = moduleAddress + 0x56450E;
+    char scriptsPath[MAX_PATH];
+    SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsPath);
+    std::strcat(scriptsPath, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
+
+    if (std::filesystem::exists(scriptsPath)) {
+        if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, scriptsPath) == 0) {
+            hookGame(moduleAddress);
+        } else {
+            std::cout << "Failed to initialize internal LuaBackend!" << std::endl;    
+        }
+    } else {
+        std::cout << "Scripts directory does not exist! Expected at: " << scriptsPath << std::endl;
+    }
+
+    return 0;
+}
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
+    static HMODULE dinput8 = nullptr;
+
+    switch (fdwReason) {
+        case DLL_PROCESS_ATTACH: {
+            char dllPath[MAX_PATH];
+            GetSystemDirectoryA(dllPath, MAX_PATH);
+            std::strcat(dllPath, "\\DINPUT8.dll");
+            dinput8 = LoadLibraryA(dllPath);
+            createProc = (DirectInput8CreateProc)GetProcAddress(dinput8, "DirectInput8Create");
+
+            if (CreateThread(nullptr, 0, entry, nullptr, 0, nullptr) == nullptr) {
+                return FALSE;
+            }
+
+            break;
+        }
+        case DLL_PROCESS_DETACH: {
+            FreeLibrary(dinput8);
+            break;
+        }
+        default:
+            break;
+    }
+
+    return TRUE;
+}
+
+extern "C" __declspec(dllexport) HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter) {
+    return createProc(hinst, dwVersion, riidltf, ppvOut, punkOuter);
 }
