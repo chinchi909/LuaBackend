@@ -234,11 +234,7 @@ extern "C"
 }
 
 extern "C" void onFrame() {
-    if (!CheckLUA()) {
-        std::cout << "CheckLua failed!\n";
-    } else {
-        ExecuteLUA();
-    }
+    ExecuteLUA();
 }
 
 void hookGame(uint64_t moduleAddress) {
