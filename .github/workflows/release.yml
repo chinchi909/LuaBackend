@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1
+    - name: Build Solution
+      run: msbuild /m /p:Configuration=Release
+    - name: Compress Artifacts
+      run: |
+        7z a DINPUT8.zip ./x64/Release/DINPUT8.dll
+    - name: Automatic Release
+      uses: marvinpinto/action-automatic-releases@latest
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        draft: true
+        files: |
+          DINPUT8.zip
