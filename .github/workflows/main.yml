@@ -16,10 +16,10 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
     - name: Build Solution
-      run: msbuild /m /p:Configuration=Debug
+      run: msbuild /m /p:Configuration=Release
     - name: Upload DINPUT8
       uses: actions/upload-artifact@v2
       with:
         name: DINPUT8
         path: |
-          x64/Debug/DINPUT8.dll
+          x64/Release/DINPUT8.dll
