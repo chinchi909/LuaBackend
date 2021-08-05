@@ -7,6 +7,10 @@
 #include <psapi.h>
 #include "TlHelp32.h"
 
+#include <algorithm>
+#include <type_traits>
+#include <utility>
+
 using namespace std;
 
 class MemoryLib
@@ -127,277 +131,110 @@ class MemoryLib
         ExecAddress = (uint64_t)FindBaseAddr(PHandle, PName);
     };
 
-    static uint8_t ReadByte(uint64_t Address) { return ReadBytes(Address, 1)[0]; }
-    static vector<uint8_t> ReadBytes(uint64_t Address, int Length)
-    {
-        vector<uint8_t> _buffer;
-        _buffer.resize(Length);
+    template <typename T>
+    static T readScalar(uint64_t Address) {
+        return readScalarAbsolute<T>(Address + BaseAddress);
+    }
 
-        ReadProcessMemory(PHandle, (void*)(Address + BaseAddress), _buffer.data(), Length, 0);
+    template <typename T, std::enable_if_t<std::is_trivially_constructible_v<T>, int> = 0>
+    static T readScalarAbsolute(uint64_t Address) {
+        T t;
+        ReadProcessMemory(PHandle, (void*)Address, &t, sizeof(T), nullptr);
+        if (_bigEndian) {
+            uint8_t* p = (uint8_t*)&t;
+            std::reverse(p, p + sizeof(T));
+        }
+        return t;
+    }
+
+    template <typename T>
+    static void writeScalar(uint64_t Address, T const& t) {
+        writeScalarAbsolute<T>(Address + BaseAddress, t);
+    }
+
+    template <typename T, std::enable_if_t<std::is_trivially_copy_assignable_v<T>, int> = 0>
+    static void writeScalarAbsolute(uint64_t Address, T t) {
+        if (_bigEndian) {
+            uint8_t* p = (uint8_t*)&t;
+            std::reverse(p, p + sizeof(T));
+        }
+
+        if (WriteProcessMemory(PHandle, (void*)Address, &t, sizeof(T), nullptr) == 0) {
+            DWORD _protectOld = 0;
+            VirtualProtectEx(PHandle, (void*)Address, sizeof(T), PAGE_READWRITE, &_protectOld);
+            WriteProcessMemory(PHandle, (void*)Address, &t, sizeof(T), nullptr);
+            VirtualProtectEx(PHandle, (void*)Address, sizeof(T), _protectOld, &_protectOld);
+        }
+    }
+
+    static uint8_t ReadByte(uint64_t Address) { return readScalar<uint8_t>(Address); }
+    static uint16_t ReadShort(uint64_t Address) { return readScalar<uint16_t>(Address); }
+    static uint32_t ReadInt(uint64_t Address) { return readScalar<uint32_t>(Address); }
+    static uint64_t ReadLong(uint64_t Address) { return readScalar<uint64_t>(Address); }
+    static float ReadFloat(uint64_t Address) { return readScalar<float>(Address); }
+    static bool ReadBool(uint64_t Address) { return ReadByte(Address) != 0; }
+
+    static vector<uint8_t> ReadBytes(uint64_t Address, int Length) { return ReadBytesAbsolute(Address + BaseAddress, Length); }
+    static string ReadString(uint64_t Address, int Length) { return ReadStringAbsolute(Address + BaseAddress, Length); }
+
+    static void WriteByte(uint64_t Address, uint8_t Input) { writeScalar<uint8_t>(Address, Input); }
+    static void WriteShort(uint64_t Address, uint16_t Input) { writeScalar<uint16_t>(Address, Input); }
+    static void WriteInt(uint64_t Address, uint32_t Input) { writeScalar<uint32_t>(Address, Input); }
+    static void WriteLong(uint64_t Address, uint64_t Input) { writeScalar<uint64_t>(Address, Input); }
+    static void WriteFloat(uint64_t Address, float Input) { writeScalar<float>(Address, Input); }
+    static void WriteBool(uint64_t Address, bool Input) { WriteByte(Address, Input ? 1 : 0); }
+
+    static void WriteBytes(uint64_t Address, vector<uint8_t> Input) { WriteBytesAbsolute(Address + BaseAddress, std::move(Input)); }
+    static void WriteString(uint64_t Address, string Input) { WriteStringAbsolute(Address + BaseAddress, std::move(Input)); }
+
+    static uint8_t ReadByteAbsolute(uint64_t Address) { return readScalarAbsolute<uint8_t>(Address); }
+    static uint16_t ReadShortAbsolute(uint64_t Address) { return readScalarAbsolute<uint16_t>(Address); }
+    static uint32_t ReadIntAbsolute(uint64_t Address) { return readScalarAbsolute<uint32_t>(Address); }
+    static uint64_t ReadLongAbsolute(uint64_t Address) { return readScalarAbsolute<uint64_t>(Address); }
+    static float ReadFloatAbsolute(uint64_t Address) { return readScalarAbsolute<float>(Address); }
+    static bool ReadBoolAbsolute(uint64_t Address) { return ReadByteAbsolute(Address) != 0; }
+
+    static vector<uint8_t> ReadBytesAbsolute(uint64_t Address, int Length) {
+        vector<uint8_t> _buffer(Length);
+
+        ReadProcessMemory(PHandle, (void*)Address, _buffer.data(), Length, 0);
         return _buffer;
     }
-    static uint16_t ReadShort(uint64_t Address)
-    {
-        auto _buffer = ReadBytes(Address, 2);
 
-        if (_bigEndian)
-            return (_buffer[0] << 8) | _buffer[1];
-        else
-            return (_buffer[1] << 8) | _buffer[0];
-    }
-    static uint32_t ReadInt(uint64_t Address)
-    {
-        auto _buffer = ReadBytes(Address, 4);
+    static string ReadStringAbsolute(uint64_t Address, int Length) {
+        string _output;
+        _output.resize(Length);
 
-        if (_bigEndian)
-            return (_buffer[0] << 24) | (_buffer[1] << 16) | (_buffer[2] << 8) | (_buffer[3]);
-        else
-            return (_buffer[3] << 24) | (_buffer[2] << 16) | (_buffer[1] << 8) | (_buffer[0]);
-    }
-    static uint64_t ReadLong(uint64_t Address)
-    {
-        auto _buffer = ReadBytes(Address, 8);
-
-        if (_bigEndian)
-            return ((uint64_t)_buffer[0] << 56) | ((uint64_t)_buffer[1] << 48) | ((uint64_t)_buffer[2] << 40) | ((uint64_t)_buffer[3] << 32) | ((uint64_t)_buffer[4] << 24) | ((uint64_t)_buffer[5] << 16) | ((uint64_t)_buffer[6] << 8) | ((uint64_t)_buffer[7]);
-
-        else
-            return ((uint64_t)_buffer[7] << 56) | ((uint64_t)_buffer[6] << 48) | ((uint64_t)_buffer[5] << 40) | ((uint64_t)_buffer[4] << 32) | ((uint64_t)_buffer[3] << 24) | ((uint64_t)_buffer[2] << 16) | ((uint64_t)_buffer[1] << 8) | ((uint64_t)_buffer[0]);
-    }
-    static float ReadFloat(uint64_t Address)
-    {
-        auto _value = ReadInt(Address);
-        auto _return = *reinterpret_cast<float*>(&_value);
-        return _return;
-    }
-    static bool ReadBool(uint64_t Address)
-    {
-        auto _value = ReadByte(Address);
-        return _value == 0 ? false : true;
-    }
-    static string ReadString(uint64_t Address, int Length)
-    {
-        auto _value = ReadBytes(Address, Length);
-        string _output(_value.begin(), _value.end());
-        return _output;
-    }
-    
-    static void WriteByte(uint64_t Address, uint8_t Input) 
-    { 
-        if (WriteProcessMemory(PHandle, (void*)(Address + BaseAddress), &Input, 1, 0) == 0)
-        {
-            DWORD _protectOld = 0;
-            VirtualProtectEx(PHandle, (void*)(Address + BaseAddress), 256, PAGE_READWRITE, &_protectOld);
-            WriteProcessMemory(PHandle, (void*)(Address + BaseAddress), &Input, 1, 0);
-        }
-    }
-
-    static void WriteBytes(uint64_t Address, vector<uint8_t> Input)
-    {
-        if (WriteProcessMemory(PHandle, (void*)(Address + BaseAddress), Input.data(), Input.size(), 0) == 0)
-        {
-            DWORD _protectOld = 0;
-            VirtualProtectEx(PHandle, (void*)(Address + BaseAddress), 256, PAGE_READWRITE, &_protectOld);
-            WriteProcessMemory(PHandle, (void*)(Address + BaseAddress), Input.data(), Input.size(), 0);
-        }
-    }
-    static void WriteShort(uint64_t Address, uint16_t Input)
-    {
-        vector<uint8_t> _write(2);
-
-        for (uint64_t i = 0; i < 2; i++)
-        {
-            if (_bigEndian)
-                _write[1 - i] = (Input >> (i * 8)) & 0xFF;
-
-            else
-                _write[i] = (Input >> (i * 8)) & 0xFF;
-        }
-
-        WriteBytes(Address, _write);
-        _write.clear();
-    }
-    static void WriteInt(uint64_t Address, uint32_t Input)
-    {
-        vector<uint8_t> _write(4);
-
-        for (uint64_t i = 0; i < 4; i++)
-        {
-            if (_bigEndian)
-                _write[3 - i] = (Input >> (i * 8)) & 0xFF;
-
-            else
-                _write[i] = (Input >> (i * 8)) & 0xFF;
-        }
-
-        WriteBytes(Address, _write);
-        _write.clear();
-    }
-    static void WriteLong(uint64_t Address, uint64_t Input)
-    {
-        vector<uint8_t> _write(8);
-
-        for (uint64_t i = 0; i < 8; i++)
-        {
-            if (_bigEndian)
-                _write[1 - i] = (Input >> (i * 8)) & 0xFF;
-
-            else
-                _write[i] = (Input >> (i * 8)) & 0xFF;
-        }
-
-        WriteBytes(Address, _write);
-        _write.clear();
-    }
-    static void WriteFloat(uint64_t Address, float Input)
-    {
-        auto _value = *reinterpret_cast<uint32_t*>(&Input);
-        WriteInt(Address, _value);
-    }
-    static void WriteBool(uint64_t Address, bool Input) { Input == true ? WriteByte(Address, 1) : WriteByte(Address, 0); }
-    static void WriteString(uint64_t Address, string Input)
-    {
-        vector<uint8_t> _value(Input.begin(), Input.end());
-        WriteBytes(Address, _value);
-    }
-
-    static uint8_t ReadByteAbsolute(uint64_t Address) { return ReadBytesAbsolute(Address, 1)[0]; }
-    static vector<uint8_t> ReadBytesAbsolute(uint64_t Address, int Length)
-    {
-        vector<uint8_t> _buffer;
-        _buffer.resize(Length);
-
-        ReadProcessMemory(PHandle, (void*)(Address), _buffer.data(), Length, 0);
-        return _buffer;
-    }
-    static uint16_t ReadShortAbsolute(uint64_t Address)
-    {
-        auto _buffer = ReadBytesAbsolute(Address, 2);
-
-        if (_bigEndian)
-            return (_buffer[0] << 8) | _buffer[1];
-
-        else
-            return (_buffer[1] << 8) | _buffer[0];
-    }
-    static uint32_t ReadIntAbsolute(uint64_t Address)
-    {
-        auto _buffer = ReadBytesAbsolute(Address, 4);
-
-        if (_bigEndian)
-            return (_buffer[0] << 24) | (_buffer[1] << 16) | (_buffer[2] << 8) | (_buffer[3]);
-
-        else
-            return (_buffer[3] << 24) | (_buffer[2] << 16) | (_buffer[1] << 8) | (_buffer[0]);
-    }
-    static uint64_t ReadLongAbsolute(uint64_t Address)
-    {
-        auto _buffer = ReadBytesAbsolute(Address, 8);
-
-        if (_bigEndian)
-            return ((uint64_t)_buffer[0] << 56) | ((uint64_t)_buffer[1] << 48) | ((uint64_t)_buffer[2] << 40) | ((uint64_t)_buffer[3] << 32) | ((uint64_t)_buffer[4] << 24) | ((uint64_t)_buffer[5] << 16) | ((uint64_t)_buffer[6] << 8) | ((uint64_t)_buffer[7]);
-
-        else
-            return ((uint64_t)_buffer[7] << 56) | ((uint64_t)_buffer[6] << 48) | ((uint64_t)_buffer[5] << 40) | ((uint64_t)_buffer[4] << 32) | ((uint64_t)_buffer[3] << 24) | ((uint64_t)_buffer[2] << 16) | ((uint64_t)_buffer[1] << 8) | ((uint64_t)_buffer[0]);
-    }
-    static float ReadFloatAbsolute(uint64_t Address)
-    {
-        auto _value = ReadIntAbsolute(Address);
-        auto _return = *reinterpret_cast<float*>(&_value);
-        return _return;
-    }
-    static bool ReadBoolAbsolute(uint64_t Address)
-    {
-        auto _value = ReadByteAbsolute(Address);
-        return _value == 0 ? false : true;
-    }
-    static string ReadStringAbsolute(uint64_t Address, int Length)
-    {
-        auto _value = ReadBytesAbsolute(Address, Length);
-        string _output(_value.begin(), _value.end());
+        ReadProcessMemory(PHandle, (void*)Address, _output.data(), Length, 0);
         return _output;
     }
 
-    static void WriteByteAbsolute(uint64_t Address, uint8_t Input)
-    {
-        WriteProcessMemory(PHandle, (void*)(Address), &Input, 1, 0);
+    static void WriteByteAbsolute(uint64_t Address, uint8_t Input) { writeScalarAbsolute<uint8_t>(Address, Input); }
+    static void WriteShortAbsolute(uint64_t Address, uint16_t Input) { writeScalarAbsolute<uint16_t>(Address, Input); }
+    static void WriteIntAbsolute(uint64_t Address, uint32_t Input) { writeScalarAbsolute<uint32_t>(Address, Input); }
+    static void WriteLongAbsolute(uint64_t Address, uint64_t Input) { writeScalarAbsolute<uint64_t>(Address, Input); }
+    static void WriteFloatAbsolute(uint64_t Address, float Input) { writeScalarAbsolute<float>(Address, Input); }
+    static void WriteBoolAbsolute(uint64_t Address, bool Input) { WriteByteAbsolute(Address, Input ? 1 : 0); }
+
+    static void WriteBytesAbsolute(uint64_t Address, vector<uint8_t> Input) {
+        WriteProcessMemory(PHandle, (void*)Address, Input.data(), Input.size(), 0);
     }
-    static void WriteBytesAbsolute(uint64_t Address, vector<uint8_t> Input)
-    {
-        WriteProcessMemory(PHandle, (void*)(Address), Input.data(), Input.size(), 0);
+
+    static void WriteStringAbsolute(uint64_t Address, string Input) {
+        WriteProcessMemory(PHandle, (void*)Address, Input.data(), Input.size(), 0);
     }
-    static void WriteShortAbsolute(uint64_t Address, uint16_t Input)
-    {
-        vector<uint8_t> _write(2);
 
-        for (uint64_t i = 0; i < 2; i++)
-        {
-            if (_bigEndian)
-                _write[1 - i] = (Input >> (i * 8)) & 0xFF;
-
-            else
-                _write[i] = (Input >> (i * 8)) & 0xFF;
-        }
-
-        WriteBytesAbsolute(Address, _write);
-        _write.clear();
-    }
-    static void WriteIntAbsolute(uint64_t Address, uint32_t Input)
-    {
-        vector<uint8_t> _write(4);
-
-        for (uint64_t i = 0; i < 4; i++)
-        {
-            if (_bigEndian)
-                _write[1 - i] = (Input >> (i * 8)) & 0xFF;
-
-            else
-                _write[i] = (Input >> (i * 8)) & 0xFF;
-        }
-
-        WriteBytesAbsolute(Address, _write);
-        _write.clear();
-    }
-    static void WriteLongAbsolute(uint64_t Address, uint64_t Input)
-    {
-        vector<uint8_t> _write(8);
-
-        for (uint64_t i = 0; i < 8; i++)
-        {
-            if (_bigEndian)
-                _write[1 - i] = (Input >> (i * 8)) & 0xFF;
-
-            else
-                _write[i] = (Input >> (i * 8)) & 0xFF;
-        }
-
-        WriteBytesAbsolute(Address, _write);
-        _write.clear();
-    }
-    static void WriteFloatAbsolute(uint64_t Address, float Input)
-    {
-        auto _value = *reinterpret_cast<uint32_t*>(&Input);
-        WriteIntAbsolute(Address, _value);
-    }
-    static void WriteBoolAbsolute(uint64_t Address, bool Input) { Input == true ? WriteByteAbsolute(Address, 1) : WriteByteAbsolute(Address, 0); }
-    static void WriteStringAbsolute(uint64_t Address, string Input)
-    {
-        vector<uint8_t> _value(Input.begin(), Input.end());
-        WriteBytesAbsolute(Address, _value);
-    }
-    
     static void WriteExec(uint64_t Address, vector<uint8_t> Input)
     {
         WriteProcessMemory(PHandle, (void*)(Address + ExecAddress), Input.data(), Input.size(), 0);
     }
 
-    static uint64_t GetPointer(uint64_t Address, uint64_t Offset)
-    {
+    static uint64_t GetPointer(uint64_t Address, uint64_t Offset) {
         uint64_t _temp = ReadLong(Address);
         return _temp + Offset;
     }
-    static uint64_t GetPointerAbsolute(uint64_t Address, uint64_t Offset)
-    {
+
+    static uint64_t GetPointerAbsolute(uint64_t Address, uint64_t Offset) {
         uint64_t _temp = ReadLongAbsolute(Address);
         return _temp + Offset;
     }
