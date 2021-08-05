@@ -19,7 +19,7 @@ are not supported and it is recommended to use LuaFrontend concurrently with Lua
 ## Support
 For the time being, only supports the Global version of KINGDOM HEARTS II FINAL MIX on PC.
 
-Installation instructions are in **INSTALL.md**.
+Installation instructions are in [INSTALL.md](INSTALL.md).
 
 ## Why is the dll file named DINPUT8?
 This is so that LuaBackend Hook can hook into the game without requiring an EXE patch, but still
