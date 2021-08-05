@@ -14,7 +14,7 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
     - name: Build Solution
-      run: msbuild /m /p:Configuration=Release /NODEFAULTLIB:library
+      run: msbuild /m /p:Configuration=Release
     - name: Compress Artifacts
       run: |
         7z a DINPUT8.zip ./x64/Release/DINPUT8.dll

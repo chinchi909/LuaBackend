@@ -16,7 +16,7 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
     - name: Build Solution
-      run: msbuild /m /p:Configuration=Debug /NODEFAULTLIB:library
+      run: msbuild /m /p:Configuration=Debug
     - name: Upload DINPUT8
       uses: actions/upload-artifact@v2
       with:
