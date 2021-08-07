@@ -211,22 +211,24 @@ class MemoryLib
 
     static vector<uint8_t> ReadBytesAbsolute(uint64_t Address, int Length) {
         vector<uint8_t> _buffer;
-        _buffer.resize(Length);
 
         protect_lock lock(Address, static_cast<size_t>(Length));
-        if (lock.good())
+        if (lock.good()) {
+            _buffer.resize(Length);
             std::memcpy(_buffer.data(), (void*)Address, Length);
+        }
 
         return _buffer;
     }
 
     static string ReadStringAbsolute(uint64_t Address, int Length) {
         string _output;
-        _output.resize(Length);
 
         protect_lock lock(Address, static_cast<size_t>(Length));
-        if (lock.good())
+        if (lock.good()) {
+            _output.resize(Length);
             std::memcpy(_output.data(), (void*)Address, Length);
+        }
 
         return _output;
     }
