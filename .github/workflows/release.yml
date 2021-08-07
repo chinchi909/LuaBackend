@@ -18,6 +18,7 @@ jobs:
         mkdir build && cd build
         cmake ..
         cmake --build . --config Release
+        cd ..
     - name: Compress Artifacts
       run: |
         7z a DINPUT8.zip ./build/x64/Release/DINPUT8.dll
