@@ -20,10 +20,9 @@ jobs:
         mkdir build && cd build
         cmake ..
         cmake --build . --config Release
-        cd ..
     - name: Upload DINPUT8
       uses: actions/upload-artifact@v2
       with:
         name: DINPUT8
         path: |
-          build/x64/Release/DINPUT8.dll
+          build/Release/DINPUT8.dll
