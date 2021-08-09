@@ -4,6 +4,10 @@
 #include <string_view>
 #include <vector>
 
+#include <condition_variable>
+#include <thread>
+#include <mutex>
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shlobj.h>
@@ -17,6 +21,13 @@
 using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
 
 DirectInput8CreateProc createProc = nullptr;
+
+std::mutex m;
+std::condition_variable cv;
+bool doScriptsFrame = false;
+bool scriptsFrameDone = false;
+
+std::thread luaThread;
 
 extern "C"
 {
@@ -233,8 +244,32 @@ extern "C"
 	}
 }
 
+void LuaThread() {
+    while (true) {
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait(lk, [] { return doScriptsFrame; });
+
+        ExecuteLUA();
+        doScriptsFrame = false;
+        scriptsFrameDone = true;
+
+        lk.unlock();
+        cv.notify_one();
+    }
+}
+
 extern "C" void onFrame() {
-    ExecuteLUA();
+    {
+        std::lock_guard<std::mutex> lk(m);
+        doScriptsFrame = true;
+        scriptsFrameDone = false;
+    }
+    cv.notify_one();
+
+    {
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait(lk, [] { return scriptsFrameDone; });
+    }
 }
 
 void hookGame(uint64_t moduleAddress) {
@@ -311,6 +346,9 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     char scriptsPath[MAX_PATH];
     SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsPath);
     std::strcat(scriptsPath, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
+
+    luaThread = std::thread(LuaThread);
+    luaThread.detach();
 
     if (std::filesystem::exists(scriptsPath)) {
         if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, scriptsPath) == 0) {
