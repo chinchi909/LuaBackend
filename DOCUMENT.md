@@ -1,4 +1,4 @@
-## LuaBackend Cheatsheet v4.10
+## LuaBackend Cheatsheet v5.0
 
 ---
 
@@ -13,11 +13,13 @@
 
 ## Memory Functions
 
-### Read\[XXXX\](Address) / ReadString(Address, Length)
+### Read\[XXXX\](Address, Absolute = false) / ReadString(Address, Length, Absolute = false)
 
 Reads a certain value from **Address**. Returns the read value. If reading a String, length must also be declared.  
 The "**XXXX**" is a placeholder for the value type.  
-  
+
+If **Absolute** is true, the address is taken as written and base address is not added into it.
+
 List of types available: Byte, Short, Int, Long, Float, String, Boolean
 
 Example:
@@ -26,11 +28,13 @@ Example:
     local _tempByte = ReadByte(0xB007555) -- Read a byte from address BaseAddress+0xB007555
 ```
 
-### Write\[XXXX\](Address, Value)
+### Write\[XXXX\](Address, Value, Absolute = false)
 
 Writes **Value** to **Address** calculated relative to the base address. 
 The "**\[XXXX\]**" is a placeholder for the value type.  
   
+If **Absolute** is true, the address is taken as written and base address is not added into it.
+
 List of types available: Byte, Short, Int, Long, Float, String, Boolean
 
 Example:
@@ -67,18 +71,21 @@ Example:
     WriteBooleanA(0x5355355, true) -- Write true to 0x5355355
 ```
 
-### ReadArray(Address, Length)
+### ReadArray(Address, Length, Absolute = false)
 
 Reads **Length** amount of bytes from memory, starting at **Address**. Returns the read bytes as an array.  
+If **Absolute** is true, the address is taken as written and base address is not added into it.
 
 Example:
 ```lua
     local _tempArray = ReadArray(0xBEEFDED, 0x10) -- Reads 16 bytes starting at BaseAddress+0xBEEFDED
 ```
 
-### WriteArray(Address, Array)
+### WriteArray(Address, Array, Absolute = false)
 
 Writes **Array** to the memory, starting at **Address**. The array must be made of bytes (8-bit integers).  
+If **Absolute** is true, the address is taken as written and base address is not added into it.
+
 Example:
 ```lua
     local _tempArray = { 0xFE, 0xA5, 0x70 }
@@ -106,10 +113,12 @@ Example:
     WriteArrayA(0x6660420, _tempArray) -- Writes _tempArray to memory, starting at 0x6660420
 ```
 
-### GetPointer(Address, Offset)
+### GetPointer(Address, Offset, Absolute = false)
 
 Calculates a pointer with the given values.  
 Basically, reads the value at **Address** and adds **Offset** to it. Returns the resulting value.
+
+If **Absolute** is true, the address is taken as written and base address is not added into it.
 
 Example:
 ```lua
