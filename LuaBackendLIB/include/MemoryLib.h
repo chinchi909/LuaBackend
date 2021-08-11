@@ -155,8 +155,12 @@ class MemoryLib
     };
 
     template <typename T>
-    static T readScalar(uint64_t Address) {
-        return readScalarAbsolute<T>(Address + BaseAddress);
+    static T readScalar(uint64_t Address, bool absolute = false) {
+        if (absolute) {
+            return readScalarAbsolute<T>(Address);
+        } else {
+            return readScalarAbsolute<T>(Address + BaseAddress);
+        }
     }
 
     template <typename T, std::enable_if_t<std::is_trivially_constructible_v<T>, int> = 0>
@@ -169,8 +173,12 @@ class MemoryLib
     }
 
     template <typename T>
-    static void writeScalar(uint64_t Address, T const& t) {
-        writeScalarAbsolute<T>(Address + BaseAddress, t);
+    static void writeScalar(uint64_t Address, T const& t, bool absolute = false) {
+        if (absolute) {
+            writeScalarAbsolute<T>(Address, t);
+        } else {
+            writeScalarAbsolute<T>(Address + BaseAddress, t);
+        }
     }
 
     template <typename T, std::enable_if_t<std::is_trivially_copy_assignable_v<T>, int> = 0>
@@ -182,25 +190,51 @@ class MemoryLib
         *reinterpret_cast<T*>(Address) = t;
     }
 
-    static uint8_t ReadByte(uint64_t Address) { return readScalar<uint8_t>(Address); }
-    static uint16_t ReadShort(uint64_t Address) { return readScalar<uint16_t>(Address); }
-    static uint32_t ReadInt(uint64_t Address) { return readScalar<uint32_t>(Address); }
-    static uint64_t ReadLong(uint64_t Address) { return readScalar<uint64_t>(Address); }
-    static float ReadFloat(uint64_t Address) { return readScalar<float>(Address); }
-    static bool ReadBool(uint64_t Address) { return ReadByte(Address) != 0; }
+    static uint8_t ReadByte(uint64_t Address, bool absolute = false) { return readScalar<uint8_t>(Address, absolute); }
+    static uint16_t ReadShort(uint64_t Address, bool absolute = false) { return readScalar<uint16_t>(Address, absolute); }
+    static uint32_t ReadInt(uint64_t Address, bool absolute = false) { return readScalar<uint32_t>(Address, absolute); }
+    static uint64_t ReadLong(uint64_t Address, bool absolute = false) { return readScalar<uint64_t>(Address, absolute); }
+    static float ReadFloat(uint64_t Address, bool absolute = false) { return readScalar<float>(Address, absolute); }
+    static bool ReadBool(uint64_t Address, bool absolute = false) { return ReadByte(Address, absolute) != 0; }
 
-    static vector<uint8_t> ReadBytes(uint64_t Address, int Length) { return ReadBytesAbsolute(Address + BaseAddress, Length); }
-    static string ReadString(uint64_t Address, int Length) { return ReadStringAbsolute(Address + BaseAddress, Length); }
+    static vector<uint8_t> ReadBytes(uint64_t Address, int Length, bool absolute = false) {
+        if (absolute) {
+            return ReadBytesAbsolute(Address, Length);
+        } else {
+            return ReadBytesAbsolute(Address + BaseAddress, Length);
+        }
+    }
 
-    static void WriteByte(uint64_t Address, uint8_t Input) { writeScalar<uint8_t>(Address, Input); }
-    static void WriteShort(uint64_t Address, uint16_t Input) { writeScalar<uint16_t>(Address, Input); }
-    static void WriteInt(uint64_t Address, uint32_t Input) { writeScalar<uint32_t>(Address, Input); }
-    static void WriteLong(uint64_t Address, uint64_t Input) { writeScalar<uint64_t>(Address, Input); }
-    static void WriteFloat(uint64_t Address, float Input) { writeScalar<float>(Address, Input); }
-    static void WriteBool(uint64_t Address, bool Input) { WriteByte(Address, Input ? 1 : 0); }
+    static string ReadString(uint64_t Address, int Length, bool absolute = false) {
+        if (absolute) {
+            return ReadStringAbsolute(Address, Length);
+        } else {
+            return ReadStringAbsolute(Address + BaseAddress, Length);
+        }
+    }
 
-    static void WriteBytes(uint64_t Address, vector<uint8_t> Input) { WriteBytesAbsolute(Address + BaseAddress, std::move(Input)); }
-    static void WriteString(uint64_t Address, string Input) { WriteStringAbsolute(Address + BaseAddress, std::move(Input)); }
+    static void WriteByte(uint64_t Address, uint8_t Input, bool absolute = false) { writeScalar<uint8_t>(Address, Input, absolute); }
+    static void WriteShort(uint64_t Address, uint16_t Input, bool absolute = false) { writeScalar<uint16_t>(Address, Input, absolute); }
+    static void WriteInt(uint64_t Address, uint32_t Input, bool absolute = false) { writeScalar<uint32_t>(Address, Input, absolute); }
+    static void WriteLong(uint64_t Address, uint64_t Input, bool absolute = false) { writeScalar<uint64_t>(Address, Input, absolute); }
+    static void WriteFloat(uint64_t Address, float Input, bool absolute = false) { writeScalar<float>(Address, Input, absolute); }
+    static void WriteBool(uint64_t Address, bool Input, bool absolute = false) { WriteByte(Address, Input ? 1 : 0, absolute); }
+
+    static void WriteBytes(uint64_t Address, vector<uint8_t> Input, bool absolute = false) {
+        if (absolute) {
+            WriteBytesAbsolute(Address, std::move(Input));
+        } else {
+            WriteBytesAbsolute(Address + BaseAddress, std::move(Input));
+        }
+    }
+
+    static void WriteString(uint64_t Address, string Input, bool absolute = false) {
+        if (absolute) {
+            WriteStringAbsolute(Address, std::move(Input));
+        } else {
+            WriteStringAbsolute(Address + BaseAddress, std::move(Input));
+        }
+    }
 
     static uint8_t ReadByteAbsolute(uint64_t Address) { return readScalarAbsolute<uint8_t>(Address); }
     static uint16_t ReadShortAbsolute(uint64_t Address) { return readScalarAbsolute<uint16_t>(Address); }
@@ -258,8 +292,8 @@ class MemoryLib
             std::memcpy((void*)(Address + ExecAddress), Input.data(), Input.size());
     }
 
-    static uint64_t GetPointer(uint64_t Address, uint64_t Offset) {
-        uint64_t _temp = ReadLong(Address);
+    static uint64_t GetPointer(uint64_t Address, uint64_t Offset, bool absolute = false) {
+        uint64_t _temp = ReadLong(Address, absolute);
         return _temp + Offset;
     }
 

@@ -55,7 +55,7 @@ void LuaBackend::LoadScripts(const char* ScrPath, uint64_t BaseInput)
 		string _pathFull = MemoryLib::PName;
 		auto _pathExe = _pathFull.substr(_pathFull.find_last_of("\\") + 1);
 
-		_script->luaState["ENGINE_VERSION"] = 4.3;
+		_script->luaState["ENGINE_VERSION"] = 5;
 		_script->luaState["ENGINE_TYPE"] = "BACKEND";
 		_script->luaState["GAME_ID"] = CRC::Calculate(_pathExe.c_str(), _pathExe.length(), CRC::CRC_32());
 		_script->luaState["BASE_ADDR"] = BaseInput;
