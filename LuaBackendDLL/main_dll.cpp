@@ -7,6 +7,8 @@
 #include <condition_variable>
 #include <thread>
 #include <mutex>
+#include <unordered_map>
+#include <optional>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -17,6 +19,14 @@
 #include <mIni/ini.h>
 
 #include "x86_64.h"
+#include "game_info.h"
+
+const std::unordered_map<std::string_view, GameInfo> gameInfos{
+    { "KINGDOM HEARTS FINAL MIX.exe", { { 0x10814C, 14 }, 0x3A0606, "kh1" } },
+    { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x14C845, 15 }, 0x56450E, "kh2" } },
+};
+
+namespace fs = std::filesystem;
 
 using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
 
@@ -28,6 +38,8 @@ bool doScriptsFrame = false;
 bool scriptsFrameDone = false;
 
 std::thread luaThread;
+
+std::optional<GameInfo> gameInfo{};
 
 extern "C"
 {
@@ -275,13 +287,13 @@ extern "C" void onFrame() {
 void hookGame(uint64_t moduleAddress) {
     static_assert(sizeof(uint64_t) == sizeof(uintptr_t));
 
-    uint8_t relocated[0xF];
-    uintptr_t hookStart = moduleAddress + 0x14C845;
-    uintptr_t hookEnd = hookStart + sizeof(relocated);
+    std::vector<uint8_t> relocated(gameInfo->hookInfo.size);
+    uintptr_t hookStart = moduleAddress + gameInfo->hookInfo.start;
+    uintptr_t hookEnd = hookStart + relocated.size();
 
     DWORD originalProt = 0;
-    VirtualProtect((void*)hookStart, sizeof(relocated), PAGE_EXECUTE_READWRITE, &originalProt);
-    std::memcpy((void*)relocated, (void*)hookStart, sizeof(relocated));
+    VirtualProtect((void*)hookStart, relocated.size(), PAGE_EXECUTE_READWRITE, &originalProt);
+    std::memcpy(relocated.data(), (void*)hookStart, relocated.size());
 
     uint8_t func[] = {
         PUSHF_1, PUSHF_2,
@@ -309,22 +321,24 @@ void hookGame(uint64_t moduleAddress) {
         JUMP_TO(hookEnd),
     };
 
-    uint64_t funcSize = sizeof(relocated) + sizeof(func);
+    uint64_t funcSize = relocated.size() + sizeof(func);
     void* funcPtr = VirtualAlloc(nullptr, funcSize, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     uintptr_t funcAddress = (uintptr_t)funcPtr;
 
-    uint8_t patch[] = {
+    std::vector<uint8_t> patch{
         JUMP_TO(funcAddress),
-        NOP,
     };
 
-    static_assert(sizeof(relocated) == sizeof(patch));
-    std::memcpy((void*)hookStart, (void*)patch, sizeof(patch));
+    while (patch.size() < gameInfo->hookInfo.size) {
+        patch.push_back(NOP);
+    }
 
-    std::memcpy((void*)funcAddress, relocated, sizeof(relocated));
-    std::memcpy((void*)(funcAddress + sizeof(relocated)), func, sizeof(func));
+    std::memcpy((void*)hookStart, patch.data(), patch.size());
 
-    VirtualProtect((void*)hookStart, sizeof(relocated), originalProt, &originalProt);
+    std::memcpy((void*)funcAddress, relocated.data(), relocated.size());
+    std::memcpy((void*)(funcAddress + relocated.size()), func, sizeof(func));
+
+    VirtualProtect((void*)hookStart, relocated.size(), originalProt, &originalProt);
 }
 
 DWORD WINAPI entry(LPVOID lpParameter) {
@@ -337,28 +351,35 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         moduleName.remove_prefix(pos + 1);
     }
 
-    if (moduleName != "KINGDOM HEARTS II FINAL MIX.exe") return 0;
+    auto entry = gameInfos.find(moduleName);
+    if (entry != gameInfos.end()) {
+        gameInfo = entry->second;
+    } else {
+        return 0;
+    }
 
     AllocConsole();
     std::freopen("CONOUT$", "w", stdout);
 
     uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
-    uint64_t baseAddress = moduleAddress + 0x56450E;
+    uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
     char scriptsPath[MAX_PATH];
     SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsPath);
     std::strcat(scriptsPath, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
 
+    fs::path gameScriptsPath = fs::path{scriptsPath} / gameInfo->scriptsPath;
+
     luaThread = std::thread(LuaThread);
     luaThread.detach();
 
-    if (std::filesystem::exists(scriptsPath)) {
-        if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, scriptsPath) == 0) {
+    if (fs::exists(gameScriptsPath)) {
+        if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, gameScriptsPath.u8string().c_str()) == 0) {
             hookGame(moduleAddress);
         } else {
             std::cout << "Failed to initialize internal LuaBackend!" << std::endl;    
         }
     } else {
-        std::cout << "Scripts directory does not exist! Expected at: " << scriptsPath << std::endl;
+        std::cout << "Scripts directory does not exist! Expected at: " << gameScriptsPath << std::endl;
     }
 
     return 0;

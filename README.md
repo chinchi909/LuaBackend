@@ -17,7 +17,9 @@ loop effectively eliminating these issues. However, scripts that rely on new fea
 are not supported and it is recommended to use LuaFrontend concurrently with LuaBackend Hook to achieve this.
 
 ## Support
-For the time being, only supports the Global version of KINGDOM HEARTS II FINAL MIX on PC.
+For the time being, only supports the PC Global versions of:
+* Kingdom Hearts Final Mix
+* Kingdom Hearts II Final Mix
 
 Installation instructions are in [INSTALL.md](INSTALL.md).
 
