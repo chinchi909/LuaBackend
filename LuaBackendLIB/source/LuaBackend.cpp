@@ -62,7 +62,7 @@ void LuaBackend::LoadScripts(const char* ScrPath, uint64_t BaseInput)
 
 		string _filePath(_path.path().u8string());
 
-		if (_filePath.find(".lua") != std::string::npos)
+		if (_filePath.size() >= 4 && _filePath.find(".lua") == _filePath.size() - 4)
 		{
 			string _luaName = _filePath.substr(_filePath.find_last_of("\\") + 1);
 			_script->luaState["LUA_NAME"] = _luaName.substr(0, _luaName.size() - 4);
