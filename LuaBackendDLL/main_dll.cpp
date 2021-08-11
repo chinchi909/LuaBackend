@@ -23,7 +23,7 @@
 
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
     { "KINGDOM HEARTS FINAL MIX.exe", { { 0x10814C, 14 }, 0x3A0606, "kh1" } },
-    { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x14C845, 15 }, 0x56450E, "kh2" } },
+    { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x12BCFD, 15 }, 0x56450E, "kh2" } },
 };
 
 namespace fs = std::filesystem;
@@ -295,7 +295,7 @@ void hookGame(uint64_t moduleAddress) {
     VirtualProtect((void*)hookStart, relocated.size(), PAGE_EXECUTE_READWRITE, &originalProt);
     std::memcpy(relocated.data(), (void*)hookStart, relocated.size());
 
-    uint8_t func[] = {
+    std::vector<uint8_t> func{
         PUSHF_1, PUSHF_2,
         PushRax,
         PushRcx,
@@ -318,11 +318,16 @@ void hookGame(uint64_t moduleAddress) {
         PopRcx,
         PopRax,
         POPF_1, POPF_2,
+    };
+
+    uint8_t funcReturn[] = {
         JUMP_TO(hookEnd),
     };
 
-    uint64_t funcSize = relocated.size() + sizeof(func);
-    void* funcPtr = VirtualAlloc(nullptr, funcSize, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    func.insert(func.end(), relocated.begin(), relocated.end());
+    func.insert(func.end(), std::begin(funcReturn), std::end(funcReturn));
+
+    void* funcPtr = VirtualAlloc(nullptr, func.size(), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     uintptr_t funcAddress = (uintptr_t)funcPtr;
 
     std::vector<uint8_t> patch{
@@ -333,10 +338,8 @@ void hookGame(uint64_t moduleAddress) {
         patch.push_back(NOP);
     }
 
+    std::memcpy((void*)funcAddress, func.data(), func.size());
     std::memcpy((void*)hookStart, patch.data(), patch.size());
-
-    std::memcpy((void*)funcAddress, relocated.data(), relocated.size());
-    std::memcpy((void*)(funcAddress + relocated.size()), func, sizeof(func));
 
     VirtualProtect((void*)hookStart, relocated.size(), originalProt, &originalProt);
 }
