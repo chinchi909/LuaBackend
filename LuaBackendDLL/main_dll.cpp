@@ -95,11 +95,11 @@ extern "C"
 		cout << "========= LuaBackend | v1.30 =========" << "\n";
 		cout << "====== Copyright 2021 - TopazTK ======" << "\n";
 		cout << "======================================" << "\n";
-		cout << "=== Compatible with LuaEngine v4.2 ===" << "\n";
+		cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
 		cout << "========== Embedded Version ==========" << "\n";
 		cout << "======================================" << "\n\n";
 
-		ConsoleLib::MessageOutput("Initializing LuaEngine v4.2...\n\n", 0);
+		ConsoleLib::MessageOutput("Initializing LuaEngine v5.0...\n\n", 0);
 		_scrPath = string(ScriptPath);
 
 		MemoryLib::ExternProcess(ProcessID, ProcessH, TargetAddress);
