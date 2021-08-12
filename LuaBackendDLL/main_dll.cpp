@@ -22,7 +22,7 @@
 #include "game_info.h"
 
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
-    { "KINGDOM HEARTS FINAL MIX.exe", { { 0x10814C, 14 }, 0x3A0606, "kh1" } },
+    { "KINGDOM HEARTS FINAL MIX.exe", { { 0x109152, 17 }, 0x3A0606, "kh1" } },
     { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x12BCFD, 15 }, 0x56450E, "kh2" } },
 };
 
