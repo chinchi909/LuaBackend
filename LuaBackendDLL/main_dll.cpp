@@ -24,7 +24,7 @@
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
     { "KINGDOM HEARTS FINAL MIX.exe", { { 0x109152, 17 }, 0x3A0606, "kh1" } },
     { "KINGDOM HEARTS Re_Chain of Memories.exe", { { 0x2E28A2, 17 }, 0x4E4660, "recom" } },
-    { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x12C272, 17 }, 0x56450E, "kh2" } },
+    { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x12B26C, 14 }, 0x56450E, "kh2" } },
     { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { { 0x4EF242, 17 }, 0x60E334, "bbs" } },
 };
 
