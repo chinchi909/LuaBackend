@@ -363,9 +363,6 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         return 0;
     }
 
-    AllocConsole();
-    std::freopen("CONOUT$", "w", stdout);
-
     uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
     uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
     char scriptsPath[MAX_PATH];
@@ -378,13 +375,14 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     luaThread.detach();
 
     if (fs::exists(gameScriptsPath)) {
+        AllocConsole();
+        std::freopen("CONOUT$", "w", stdout);
+
         if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, gameScriptsPath.u8string().c_str()) == 0) {
             hookGame(moduleAddress);
         } else {
             std::cout << "Failed to initialize internal LuaBackend!" << std::endl;    
         }
-    } else {
-        std::cout << "Scripts directory does not exist! Expected at: " << gameScriptsPath << std::endl;
     }
 
     return 0;
