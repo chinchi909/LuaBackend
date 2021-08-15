@@ -34,13 +34,6 @@ using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion
 
 DirectInput8CreateProc createProc = nullptr;
 
-std::mutex m;
-std::condition_variable cv;
-bool doScriptsFrame = false;
-bool scriptsFrameDone = false;
-
-std::thread luaThread;
-
 std::optional<GameInfo> gameInfo{};
 
 extern "C"
@@ -258,32 +251,8 @@ extern "C"
 	}
 }
 
-void LuaThread() {
-    while (true) {
-        std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk, [] { return doScriptsFrame; });
-
-        ExecuteLUA();
-        doScriptsFrame = false;
-        scriptsFrameDone = true;
-
-        lk.unlock();
-        cv.notify_one();
-    }
-}
-
 extern "C" void onFrame() {
-    {
-        std::lock_guard<std::mutex> lk(m);
-        doScriptsFrame = true;
-        scriptsFrameDone = false;
-    }
-    cv.notify_one();
-
-    {
-        std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk, [] { return scriptsFrameDone; });
-    }
+    ExecuteLUA();
 }
 
 void hookGame(uint64_t moduleAddress) {
@@ -298,7 +267,17 @@ void hookGame(uint64_t moduleAddress) {
     std::memcpy(relocated.data(), (void*)hookStart, relocated.size());
 
     std::vector<uint8_t> func{
+        PushRbx,
         PUSHF_1, PUSHF_2,
+        0x48, 0x89, 0xE3,                   // mov rbx, rsp
+        0x48, 0x83, 0xE4, 0xF0,             // and rsp, -0x10
+        0x48, 0x83, 0xEC, 0x60,             // sub rsp, 0x60
+        0x66, 0x0F, 0x7F, 0x04, 0x24,       // movdqa [rsp], xmm0
+        0x66, 0x0F, 0x7F, 0x4C, 0x24, 0x10, // movdqa [rsp+0x10], xmm1
+        0x66, 0x0F, 0x7F, 0x54, 0x24, 0x20, // movdqa [rsp+0x20], xmm2
+        0x66, 0x0F, 0x7F, 0x5C, 0x24, 0x30, // movdqa [rsp+0x30], xmm3
+        0x66, 0x0F, 0x7F, 0x64, 0x24, 0x40, // movdqa [rsp+0x40], xmm4
+        0x66, 0x0F, 0x7F, 0x6C, 0x24, 0x50, // movdqa [rsp+0x50], xmm5
         PushRax,
         PushRcx,
         PushRdx,
@@ -306,12 +285,9 @@ void hookGame(uint64_t moduleAddress) {
         PushR9_1, PushR9_2,
         PushR10_1, PushR10_2,
         PushR11_1, PushR11_2,
-        PushRbx,
-        0x48, 0x89, 0xE3,       // mov rbx, rsp
-        0x48, 0x83, 0xE4, 0xF0, // and rsp, 0xFFFFFFFFFFFFFFF0
+        0x48, 0x83, 0xEC, 0x08, // sub rsp, 0x08
         CALL((uintptr_t)&onFrame),
-        0x48, 0x89, 0xDC,       // mov rsp, rbx
-        PopRbx,
+        0x48, 0x83, 0xC4, 0x08, // add rsp, 0x08
         PopR11_1, PopR11_2,
         PopR10_1, PopR10_2,
         PopR9_1, PopR9_2,
@@ -319,7 +295,16 @@ void hookGame(uint64_t moduleAddress) {
         PopRdx,
         PopRcx,
         PopRax,
+        0x66, 0x0F, 0x6F, 0x6C, 0x24, 0x50, // movdqa xmm5, [rsp+0x50]
+        0x66, 0x0F, 0x6F, 0x64, 0x24, 0x40, // movdqa xmm4, [rsp+0x40]
+        0x66, 0x0F, 0x6F, 0x5C, 0x24, 0x30, // movdqa xmm3, [rsp+0x30]
+        0x66, 0x0F, 0x6F, 0x54, 0x24, 0x20, // movdqa xmm2, [rsp+0x20]
+        0x66, 0x0F, 0x6F, 0x4C, 0x24, 0x10, // movdqa xmm1, [rsp+0x10]
+        0x66, 0x0F, 0x6F, 0x04, 0x24,       // movdqa xmm0, [rsp]
+        0x48, 0x83, 0xC4, 0x60,             // add rsp, 0x60
+        0x48, 0x89, 0xDC,                   // mov rsp, rbx
         POPF_1, POPF_2,
+        PopRbx,
     };
 
     uint8_t funcReturn[] = {
@@ -370,9 +355,6 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     std::strcat(scriptsPath, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
 
     fs::path gameScriptsPath = fs::path{scriptsPath} / gameInfo->scriptsPath;
-
-    luaThread = std::thread(LuaThread);
-    luaThread.detach();
 
     if (fs::exists(gameScriptsPath)) {
         AllocConsole();
