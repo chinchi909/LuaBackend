@@ -10,6 +10,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shlobj.h>
+#include <tlhelp32.h>
 
 #include <MemoryLib.h>
 #include <LuaBackend.h>
@@ -32,6 +33,7 @@ using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion
 DirectInput8CreateProc createProc = nullptr;
 
 std::optional<GameInfo> gameInfo{};
+std::vector<HANDLE> gameThreads;
 
 extern "C"
 {
@@ -248,8 +250,41 @@ extern "C"
 	}
 }
 
-extern "C" void onFrame() {
+void openGameThreads() {
+    DWORD currentProcessId = GetCurrentProcessId();
+    DWORD currentThreadId = GetCurrentThreadId();
+    HANDLE threadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    THREADENTRY32 te32;
+    te32.dwSize = sizeof(THREADENTRY32);
+
+    if (Thread32First(threadSnap, &te32)) {
+        do {
+            if (te32.th32OwnerProcessID == currentProcessId && te32.th32ThreadID != currentThreadId) {
+                HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME, false, te32.th32ThreadID);
+                if (thread != NULL) {
+                    gameThreads.push_back(thread);
+                }
+            }
+        } while (Thread32Next(threadSnap, &te32));
+    }
+
+    CloseHandle(threadSnap);
+}
+
+void __cdecl onFrame() {
+    if (gameThreads.empty()) {
+        openGameThreads();
+    }
+
+    for (const HANDLE& thread : gameThreads) {
+        SuspendThread(thread);
+    }
+
     ExecuteLUA();
+
+    for (const HANDLE& thread : gameThreads) {
+        ResumeThread(thread);
+    }
 }
 
 void hookGame(uint64_t moduleAddress) {
@@ -371,6 +406,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
             break;
         }
         case DLL_PROCESS_DETACH: {
+            for (const HANDLE& thread : gameThreads) {
+                CloseHandle(thread);
+            }
+
             FreeLibrary(dinput8);
             break;
         }
