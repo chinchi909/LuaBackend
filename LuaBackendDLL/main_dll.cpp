@@ -285,9 +285,9 @@ void hookGame(uint64_t moduleAddress) {
         PushR9_1, PushR9_2,
         PushR10_1, PushR10_2,
         PushR11_1, PushR11_2,
-        0x48, 0x83, 0xEC, 0x08, // sub rsp, 0x08
+        0x48, 0x83, 0xEC, 0x18, // sub rsp, 0x18
         CALL((uintptr_t)&onFrame),
-        0x48, 0x83, 0xC4, 0x08, // add rsp, 0x08
+        0x48, 0x83, 0xC4, 0x18, // add rsp, 0x18
         PopR11_1, PopR11_2,
         PopR10_1, PopR10_2,
         PopR9_1, PopR9_2,
