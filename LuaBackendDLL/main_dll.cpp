@@ -103,7 +103,7 @@ extern "C"
 		ShowWindow(GetConsoleWindow(), SW_HIDE);
 
 		cout << "======================================" << "\n";
-		cout << "========= LuaBackend | v1.30 =========" << "\n";
+		cout << "======= LuaBackendHook | v1.1.5 ======" << "\n";
 		cout << "====== Copyright 2021 - TopazTK ======" << "\n";
 		cout << "======================================" << "\n";
 		cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
