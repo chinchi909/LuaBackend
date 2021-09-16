@@ -18,18 +18,25 @@
 #include "x86_64.h"
 #include "game_info.h"
 
+// TODO: Remove after init fix.
+#include <thread>
+
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
-    { "KINGDOM HEARTS FINAL MIX.exe", { { 0x10814C, 14 }, 0x3A0606, "kh1" } },
-    { "KINGDOM HEARTS Re_Chain of Memories.exe", { { 0x2E189C, 14 }, 0x4E4660, "recom" } },
-    { "KINGDOM HEARTS II FINAL MIX.exe", { { 0x12B26C, 14 }, 0x56450E, "kh2" } },
-    { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { { 0x4EE23C, 14 }, 0x60E334, "bbs" } },
+    { "KINGDOM HEARTS FINAL MIX.exe", { 0x22B7280, 0x3A0606, "kh1" } },
+    { "KINGDOM HEARTS Re_Chain of Memories.exe", { 0xBF7A80, 0x4E4660, "recom" } },
+    { "KINGDOM HEARTS II FINAL MIX.exe", { 0x89E9A0, 0x56450E, "kh2" } },
+    { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { 0x110B5970, 0x60E334, "bbs" } },
 };
 
 namespace fs = std::filesystem;
 
 using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
+using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
 
 DirectInput8CreateProc createProc = nullptr;
+
+GameFrameProc* frameProcPtr = nullptr;
+GameFrameProc frameProc = nullptr;
 
 std::optional<GameInfo> gameInfo{};
 
@@ -248,70 +255,42 @@ extern "C"
 	}
 }
 
-extern "C" void onFrame() {
+std::uint64_t __cdecl thunk(void* rcx) {
     ExecuteLUA();
+    return frameProc(rcx);
 }
 
-void hookGame(uint64_t moduleAddress) {
-    static_assert(sizeof(uint64_t) == sizeof(uintptr_t));
+bool hookGame(std::uint64_t moduleAddress) {
+    static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
-    std::vector<uint8_t> relocated(gameInfo->hookInfo.size);
-    uintptr_t hookStart = moduleAddress + gameInfo->hookInfo.start;
-    uintptr_t hookEnd = hookStart + relocated.size();
+    std::array<std::uintptr_t, 3> frameProcOffsets{ 0x3E8, 0x0, 0x20 };
+    std::array<std::uintptr_t, 1> graphicsProcOffsets{ 0x2D8 };
 
-    DWORD originalProt = 0;
-    VirtualProtect((void*)hookStart, relocated.size(), PAGE_EXECUTE_READWRITE, &originalProt);
-    std::memcpy(relocated.data(), (void*)hookStart, relocated.size());
+    std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
-    std::vector<uint8_t> func{
-        PushRbx,
-        PUSHF_1, PUSHF_2,
-        0x48, 0x89, 0xE3,       // mov rbx, rsp
-        0x48, 0x83, 0xE4, 0xF0, // and rsp, -0x10
-        PushRax,
-        PushRcx,
-        PushRdx,
-        PushR8_1, PushR8_2,
-        PushR9_1, PushR9_2,
-        PushR10_1, PushR10_2,
-        PushR11_1, PushR11_2,
-        0x48, 0x83, 0xEC, 0x18, // sub rsp, 0x18
-        CALL((uintptr_t)&onFrame),
-        0x48, 0x83, 0xC4, 0x18, // add rsp, 0x18
-        PopR11_1, PopR11_2,
-        PopR10_1, PopR10_2,
-        PopR9_1, PopR9_2,
-        PopR8_1, PopR8_2,
-        PopRdx,
-        PopRcx,
-        PopRax,
-        0x48, 0x89, 0xDC,       // mov rsp, rbx
-        POPF_1, POPF_2,
-        PopRbx,
-    };
+    {
+        std::uintptr_t current = pointerStruct;
 
-    uint8_t funcReturn[] = {
-        JUMP_TO(hookEnd),
-    };
+        for (auto it = frameProcOffsets.cbegin(); it != frameProcOffsets.cend(); ++it) {
+            if (current == 0) return false;
 
-    func.insert(func.end(), relocated.begin(), relocated.end());
-    func.insert(func.end(), std::begin(funcReturn), std::end(funcReturn));
+            if (it != frameProcOffsets.cend() - 1) {
+                current = *reinterpret_cast<std::uintptr_t*>(current + *it);
+            } else {
+                current += *it;
+            }
+        }
 
-    void* funcPtr = VirtualAlloc(nullptr, func.size(), MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-    uintptr_t funcAddress = (uintptr_t)funcPtr;
-
-    std::vector<uint8_t> patch{
-        JUMP_TO(funcAddress),
-    };
-
-    while (patch.size() < gameInfo->hookInfo.size) {
-        patch.push_back(NOP);
+        frameProcPtr = reinterpret_cast<GameFrameProc*>(current);
     }
 
-    std::memcpy((void*)funcAddress, func.data(), func.size());
-    std::memcpy((void*)hookStart, patch.data(), patch.size());
+    DWORD originalProt = 0;
+    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
+    frameProc = *frameProcPtr;
+    *frameProcPtr = thunk;
+    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
 
-    VirtualProtect((void*)hookStart, relocated.size(), originalProt, &originalProt);
+    return true;
 }
 
 DWORD WINAPI entry(LPVOID lpParameter) {
@@ -344,7 +323,10 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         std::freopen("CONOUT$", "w", stdout);
 
         if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, gameScriptsPath.u8string().c_str()) == 0) {
-            hookGame(moduleAddress);
+            // TODO: Hook after game initialization is done.
+            while (!hookGame(moduleAddress)) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            }
         } else {
             std::cout << "Failed to initialize internal LuaBackend!" << std::endl;    
         }
