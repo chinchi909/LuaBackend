@@ -290,6 +290,8 @@ bool hookGame(std::uint64_t moduleAddress) {
         return false;
     }
 
+    if (*frameProcPtr == nullptr) return false;
+
     DWORD originalProt = 0;
     VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
     frameProc = *frameProcPtr;
