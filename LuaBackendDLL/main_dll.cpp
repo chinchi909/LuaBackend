@@ -32,11 +32,15 @@ namespace fs = std::filesystem;
 
 using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
 using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
+using GraphicsProc = void(__cdecl*)();
 
 DirectInput8CreateProc createProc = nullptr;
 
 GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
+
+GraphicsProc* graphicsProcPtr = nullptr;
+GraphicsProc graphicsProc = nullptr;
 
 std::optional<GameInfo> gameInfo{};
 
@@ -259,13 +263,13 @@ std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const std
     std::uintptr_t current = start;
 
     for (auto it = offsets.cbegin(); it != offsets.cend(); ++it) {
-        if (current == 0) return {};
-
         if (it != offsets.cend() - 1) {
             current = *reinterpret_cast<std::uintptr_t*>(current + *it);
         } else {
             current += *it;
         }
+
+        if (current == 0) return {};
     }
 
     return current;
@@ -274,6 +278,10 @@ std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const std
 std::uint64_t __cdecl frameHook(void* rcx) {
     ExecuteLUA();
     return frameProc(rcx);
+}
+
+void __cdecl graphicsHook() {
+    return graphicsProc();
 }
 
 bool hookGame(std::uint64_t moduleAddress) {
@@ -290,11 +298,23 @@ bool hookGame(std::uint64_t moduleAddress) {
         return false;
     }
 
+    if (auto ptr = followPointerChain(pointerStruct, graphicsProcOffsets)) {
+        graphicsProcPtr = reinterpret_cast<GraphicsProc*>(*ptr);
+    } else {
+        return false;
+    }
+
+    if (*frameProcPtr == nullptr) return false;
+    if (*graphicsProcPtr == nullptr) return false;
+
     DWORD originalProt = 0;
     VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
     frameProc = *frameProcPtr;
     *frameProcPtr = frameHook;
     VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
+
+    graphicsProc = *graphicsProcPtr;
+    *graphicsProcPtr = graphicsHook;
 
     return true;
 }
