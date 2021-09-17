@@ -30,7 +30,20 @@ target_compile_definitions(LuaBackendLIB PRIVATE -DUNICODE -D_UNICODE)
 
 # DINPUT8
 
-add_library(DINPUT8 SHARED LuaBackendDLL/main_dll.cpp)
+add_library(DINPUT8 SHARED
+    LuaBackendDLL/main_dll.cpp
+
+    LuaBackendDLL/imgui.cpp
+    LuaBackendDLL/imgui_demo.cpp
+    LuaBackendDLL/imgui_draw.cpp
+    LuaBackendDLL/imgui_tables.cpp
+    LuaBackendDLL/imgui_widgets.cpp
+
+    LuaBackendDLL/backends/imgui_impl_dx12.cpp
+    LuaBackendDLL/backends/imgui_impl_win32.cpp
+)
+
+target_link_directories(DINPUT8 PRIVATE LuaBackendLIB)
 
 target_compile_definitions(DINPUT8 PRIVATE -DUNICODE -D_UNICODE)
 

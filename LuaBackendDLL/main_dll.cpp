@@ -1,4 +1,5 @@
 #include <chrono>
+#include <exception>
 #include <iostream>
 #include <filesystem>
 #include <string_view>
@@ -21,6 +22,12 @@
 // TODO: Remove after init fix.
 #include <thread>
 
+#include "imgui.h"
+#include "backends/imgui_impl_win32.h"
+#include "backends/imgui_impl_dx12.h"
+#include <d3d12.h>
+#include <dxgi1_6.h>
+
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
     { "KINGDOM HEARTS FINAL MIX.exe", { 0x22B7280, 0x3A0606, "kh1" } },
     { "KINGDOM HEARTS Re_Chain of Memories.exe", { 0xBF7A80, 0x4E4660, "recom" } },
@@ -32,15 +39,15 @@ namespace fs = std::filesystem;
 
 using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
 using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
-using GraphicsProc = void(__cdecl*)();
+using PresentProc = HRESULT(__cdecl*)(IDXGISwapChain4* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters);
 
 DirectInput8CreateProc createProc = nullptr;
 
 GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
 
-GraphicsProc* graphicsProcPtr = nullptr;
-GraphicsProc graphicsProc = nullptr;
+PresentProc* presentProcPtr = nullptr;
+PresentProc presentProc = nullptr;
 
 std::optional<GameInfo> gameInfo{};
 
@@ -275,20 +282,64 @@ std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const std
     return current;
 }
 
-std::uint64_t __cdecl frameHook(void* rcx) {
+std::uint64_t __cdecl frameHook(void* _ArgList) {
     ExecuteLUA();
-    return frameProc(rcx);
+    return frameProc(_ArgList);
 }
 
-void __cdecl graphicsHook() {
-    return graphicsProc();
+HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters) {
+    static bool initialized = false;
+    static IDXGIDevice4* pdx12device = nullptr;
+    static ID3D12CommandQueue* pdx12commandQueue = nullptr;
+
+    if (!initialized) {
+        std::uintptr_t moduleAddress = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
+        std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
+
+        HWND hwnd;
+        if (thisx->GetHwnd(&hwnd) != S_OK) {
+            throw std::runtime_error{"failed to get hwnd"};
+        }
+
+        pdx12device = *reinterpret_cast<IDXGIDevice4**>(pointerStruct + 0x2E0);
+        if (pdx12device == nullptr) throw std::runtime_error{"pdx12device is null"};
+
+        pdx12commandQueue = *reinterpret_cast<ID3D12CommandQueue**>(pointerStruct + 0x468);
+        if (pdx12commandQueue == nullptr) throw std::runtime_error{"pdx12commandQueue is null"};
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+        ImGui::StyleColorsDark();
+
+        // ImGui_ImplWin32_Init(hwnd);
+        // ImGui_ImplDX12_Init(g_pd3dDevice, 3,
+        //     DXGI_FORMAT_R8G8B8A8_UNORM, g_pd3dSrvDescHeap,
+        //     g_pd3dSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
+        //     g_pd3dSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+        initialized = true;
+    }
+
+    // ImGui_ImplDX12_NewFrame();
+    // ImGui_ImplWin32_NewFrame();
+    // ImGui::NewFrame();
+
+    // ImGui::ShowDemoWindow();
+
+    // ImGui::EndFrame();
+    // ImGui::Render();
+
+    return presentProc(thisx, SyncInterval, PresentFlags, pPresentParameters);
 }
 
 bool hookGame(std::uint64_t moduleAddress) {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
     const std::vector<std::uintptr_t> frameProcOffsets{ 0x3E8, 0x0, 0x20 };
-    const std::vector<std::uintptr_t> graphicsProcOffsets{ 0x2D8 };
+    // IDXGISwapChain4 Present1 vtable entry
+    const std::vector<std::uintptr_t> presentProcOffsets{ 0x460, 0x18, 0x0, 0xB0 };
 
     std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
@@ -298,23 +349,30 @@ bool hookGame(std::uint64_t moduleAddress) {
         return false;
     }
 
-    if (auto ptr = followPointerChain(pointerStruct, graphicsProcOffsets)) {
-        graphicsProcPtr = reinterpret_cast<GraphicsProc*>(*ptr);
+    if (auto ptr = followPointerChain(pointerStruct, presentProcOffsets)) {
+        presentProcPtr = reinterpret_cast<PresentProc*>(*ptr);
     } else {
         return false;
     }
 
     if (*frameProcPtr == nullptr) return false;
-    if (*graphicsProcPtr == nullptr) return false;
+    if (*presentProcPtr == nullptr) return false;
 
-    DWORD originalProt = 0;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
-    frameProc = *frameProcPtr;
-    *frameProcPtr = frameHook;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
+    {
+        DWORD originalProt = 0;
+        VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
+        frameProc = *frameProcPtr;
+        *frameProcPtr = frameHook;
+        VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
+    }
 
-    graphicsProc = *graphicsProcPtr;
-    *graphicsProcPtr = graphicsHook;
+    {
+        DWORD originalProt = 0;
+        VirtualProtect(presentProcPtr, sizeof(presentProcPtr), PAGE_READWRITE, &originalProt);
+        presentProc = *presentProcPtr;
+        *presentProcPtr = presentHook;
+        VirtualProtect(presentProcPtr, sizeof(presentProcPtr), originalProt, &originalProt);
+    }
 
     return true;
 }
