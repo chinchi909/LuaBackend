@@ -39,8 +39,8 @@ add_library(DINPUT8 SHARED
     LuaBackendDLL/imgui_tables.cpp
     LuaBackendDLL/imgui_widgets.cpp
 
-    LuaBackendDLL/backends/imgui_impl_dx12.cpp
-    LuaBackendDLL/backends/imgui_impl_win32.cpp
+    LuaBackendDLL/imgui_impl_dx12.cpp
+    LuaBackendDLL/imgui_impl_win32.cpp
 )
 
 target_link_directories(DINPUT8 PRIVATE LuaBackendLIB)

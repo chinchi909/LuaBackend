@@ -23,8 +23,8 @@
 #include <thread>
 
 #include "imgui.h"
-#include "backends/imgui_impl_win32.h"
-#include "backends/imgui_impl_dx12.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
@@ -289,8 +289,16 @@ std::uint64_t __cdecl frameHook(void* _ArgList) {
 
 HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters) {
     static bool initialized = false;
-    static IDXGIDevice4* pdx12device = nullptr;
-    static ID3D12CommandQueue* pdx12commandQueue = nullptr;
+    static ID3D12Device** ppdx12Device = nullptr;
+    static ID3D12CommandQueue** ppdx12CommandQueue = nullptr;
+
+    static ID3D12DescriptorHeap* pdx12SrvDescHeap = nullptr;
+    static ID3D12DescriptorHeap* pdx12RtvDescHeap = nullptr;
+    static ID3D12CommandAllocator* pdx12CommandAllocator = nullptr;
+    static ID3D12GraphicsCommandList* pdx12CommandList = nullptr;
+
+    static D3D12_CPU_DESCRIPTOR_HANDLE  mainRenderTargetDescriptor = {};
+    static ID3D12Resource* mainRenderTargetResource = {};
 
     if (!initialized) {
         std::uintptr_t moduleAddress = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
@@ -301,35 +309,79 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
             throw std::runtime_error{"failed to get hwnd"};
         }
 
-        pdx12device = *reinterpret_cast<IDXGIDevice4**>(pointerStruct + 0x2E0);
-        if (pdx12device == nullptr) throw std::runtime_error{"pdx12device is null"};
+        ppdx12Device = reinterpret_cast<ID3D12Device**>(pointerStruct + 0x2E0);
+        ppdx12CommandQueue = reinterpret_cast<ID3D12CommandQueue**>(pointerStruct + 0x468);
 
-        pdx12commandQueue = *reinterpret_cast<ID3D12CommandQueue**>(pointerStruct + 0x468);
-        if (pdx12commandQueue == nullptr) throw std::runtime_error{"pdx12commandQueue is null"};
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+            desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+            desc.NumDescriptors = 1;
+            desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+            desc.NodeMask = 1;
+            if ((*ppdx12Device)->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pdx12RtvDescHeap)) != S_OK)
+                throw std::runtime_error{"failed to create pdx12RtvDescHeap"};
 
-        IMGUI_CHECKVERSION();
+            SIZE_T rtvDescriptorSize = (*ppdx12Device)->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+            D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = pdx12RtvDescHeap->GetCPUDescriptorHandleForHeapStart();
+            mainRenderTargetDescriptor = rtvHandle;
+            rtvHandle.ptr += rtvDescriptorSize;
+        }
+
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+            desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+            desc.NumDescriptors = 1;
+            desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            if ((*ppdx12Device)->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pdx12SrvDescHeap)) != S_OK)
+                throw std::runtime_error{"failed to create pdx12SrvDescHeap"};
+        }
+
+        if ((*ppdx12Device)->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&pdx12CommandAllocator)) != S_OK)
+            throw std::runtime_error{"failed to create pdx12CommandAllocator"};
+
+        if ((*ppdx12Device)->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, pdx12CommandAllocator, NULL, IID_PPV_ARGS(&pdx12CommandList)) != S_OK ||
+            pdx12CommandList->Close() != S_OK)
+            throw std::runtime_error{"failed to create pdx12CommandList"};
+
+        {
+            ID3D12Resource* pBackBuffer = nullptr;
+            // FIX: Trying to get buffer 0 crashes the game.
+            // thisx->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
+            // (*ppdx12Device)->CreateRenderTargetView(pBackBuffer, NULL, mainRenderTargetDescriptor);
+            // mainRenderTargetResource = pBackBuffer;
+        }
+
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO(); (void)io;
 
         ImGui::StyleColorsDark();
 
-        // ImGui_ImplWin32_Init(hwnd);
-        // ImGui_ImplDX12_Init(g_pd3dDevice, 3,
-        //     DXGI_FORMAT_R8G8B8A8_UNORM, g_pd3dSrvDescHeap,
-        //     g_pd3dSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
-        //     g_pd3dSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+        ImGui_ImplWin32_Init(hwnd);
+        ImGui_ImplDX12_Init(*ppdx12Device, 1,
+            DXGI_FORMAT_R8G8B8A8_UNORM, pdx12SrvDescHeap,
+            pdx12SrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
+            pdx12SrvDescHeap->GetGPUDescriptorHandleForHeapStart());
 
         initialized = true;
     }
 
-    // ImGui_ImplDX12_NewFrame();
-    // ImGui_ImplWin32_NewFrame();
-    // ImGui::NewFrame();
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
 
-    // ImGui::ShowDemoWindow();
+    ImGui::ShowDemoWindow();
 
-    // ImGui::EndFrame();
-    // ImGui::Render();
+    ImGui::EndFrame();
+    ImGui::Render();
+
+    pdx12CommandList->Reset(pdx12CommandAllocator, nullptr);
+
+    // pdx12CommandList->OMSetRenderTargets(1, &mainRenderTargetDescriptor, FALSE, nullptr);
+    pdx12CommandList->SetDescriptorHeaps(1, &pdx12SrvDescHeap);
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pdx12CommandList);
+    pdx12CommandList->Close();
+
+    (*ppdx12CommandQueue)->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(&pdx12CommandList));
 
     return presentProc(thisx, SyncInterval, PresentFlags, pPresentParameters);
 }
