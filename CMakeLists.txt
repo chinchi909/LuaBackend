@@ -47,4 +47,4 @@ target_link_directories(DINPUT8 PRIVATE LuaBackendLIB)
 
 target_compile_definitions(DINPUT8 PRIVATE -DUNICODE -D_UNICODE)
 
-target_link_libraries(DINPUT8 LuaBackendLIB)
+target_link_libraries(DINPUT8 LuaBackendLIB D3d12)

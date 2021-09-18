@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <exception>
 #include <iostream>
@@ -39,17 +40,25 @@ namespace fs = std::filesystem;
 
 using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
 using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
-using PresentProc = HRESULT(__cdecl*)(IDXGISwapChain4* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters);
+using Present1Proc = HRESULT(__cdecl*)(IDXGISwapChain3* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters);
+using GetBufferProc = HRESULT(__cdecl*)(IDXGISwapChain3* thisx, UINT Buffer, REFIID riid, void **ppSurface);
 
 DirectInput8CreateProc createProc = nullptr;
 
 GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
 
-PresentProc* presentProcPtr = nullptr;
-PresentProc presentProc = nullptr;
+Present1Proc* presentProcPtr = nullptr;
+Present1Proc presentProc = nullptr;
+
+GetBufferProc* getBufferProcPtr = nullptr;
+GetBufferProc getBufferProc = nullptr;
 
 std::optional<GameInfo> gameInfo{};
+
+constexpr int NUM_BACK_BUFFERS = 3;
+// Global because calling GetBuffer seems to crash.
+static std::array<ID3D12Resource*, NUM_BACK_BUFFERS> mainRenderTargetResource;
 
 extern "C"
 {
@@ -287,7 +296,7 @@ std::uint64_t __cdecl frameHook(void* _ArgList) {
     return frameProc(_ArgList);
 }
 
-HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters) {
+HRESULT __cdecl presentHook(IDXGISwapChain3* thisx, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters) {
     static bool initialized = false;
     static ID3D12Device** ppdx12Device = nullptr;
     static ID3D12CommandQueue** ppdx12CommandQueue = nullptr;
@@ -297,10 +306,15 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
     static ID3D12CommandAllocator* pdx12CommandAllocator = nullptr;
     static ID3D12GraphicsCommandList* pdx12CommandList = nullptr;
 
-    static D3D12_CPU_DESCRIPTOR_HANDLE  mainRenderTargetDescriptor = {};
-    static ID3D12Resource* mainRenderTargetResource = {};
+    static std::array<D3D12_CPU_DESCRIPTOR_HANDLE, NUM_BACK_BUFFERS> mainRenderTargetDescriptor;
 
     if (!initialized) {
+        for (const auto& resource : mainRenderTargetResource) {
+            if (resource == nullptr) {
+                return presentProc(thisx, SyncInterval, PresentFlags, pPresentParameters);
+            }
+        }
+
         std::uintptr_t moduleAddress = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
         std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
@@ -315,7 +329,7 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {};
             desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-            desc.NumDescriptors = 1;
+            desc.NumDescriptors = NUM_BACK_BUFFERS;
             desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
             desc.NodeMask = 1;
             if ((*ppdx12Device)->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pdx12RtvDescHeap)) != S_OK)
@@ -323,8 +337,10 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
 
             SIZE_T rtvDescriptorSize = (*ppdx12Device)->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
             D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = pdx12RtvDescHeap->GetCPUDescriptorHandleForHeapStart();
-            mainRenderTargetDescriptor = rtvHandle;
-            rtvHandle.ptr += rtvDescriptorSize;
+            for (UINT i = 0; i < NUM_BACK_BUFFERS; i++) {
+                mainRenderTargetDescriptor[i] = rtvHandle;
+                rtvHandle.ptr += rtvDescriptorSize;
+            }
         }
 
         {
@@ -343,12 +359,8 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
             pdx12CommandList->Close() != S_OK)
             throw std::runtime_error{"failed to create pdx12CommandList"};
 
-        {
-            ID3D12Resource* pBackBuffer = nullptr;
-            // FIX: Trying to get buffer 0 crashes the game.
-            // thisx->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-            // (*ppdx12Device)->CreateRenderTargetView(pBackBuffer, NULL, mainRenderTargetDescriptor);
-            // mainRenderTargetResource = pBackBuffer;
+        for (UINT i = 0; i < NUM_BACK_BUFFERS; i++) {
+            (*ppdx12Device)->CreateRenderTargetView(mainRenderTargetResource[i], NULL, mainRenderTargetDescriptor[i]);
         }
 
         ImGui::CreateContext();
@@ -374,11 +386,25 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
     ImGui::EndFrame();
     ImGui::Render();
 
-    pdx12CommandList->Reset(pdx12CommandAllocator, nullptr);
+    UINT backBufferIdx = thisx->GetCurrentBackBufferIndex();
+    pdx12CommandAllocator->Reset();
 
-    // pdx12CommandList->OMSetRenderTargets(1, &mainRenderTargetDescriptor, FALSE, nullptr);
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags                  = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource   = mainRenderTargetResource[backBufferIdx];
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    pdx12CommandList->Reset(pdx12CommandAllocator, nullptr);
+    pdx12CommandList->ResourceBarrier(1, &barrier);
+
+    pdx12CommandList->OMSetRenderTargets(1, &mainRenderTargetDescriptor[backBufferIdx], FALSE, nullptr);
     pdx12CommandList->SetDescriptorHeaps(1, &pdx12SrvDescHeap);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pdx12CommandList);
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PRESENT;
+    pdx12CommandList->ResourceBarrier(1, &barrier);
     pdx12CommandList->Close();
 
     (*ppdx12CommandQueue)->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(&pdx12CommandList));
@@ -386,14 +412,24 @@ HRESULT __cdecl presentHook(IDXGISwapChain4* thisx, UINT SyncInterval, UINT Pres
     return presentProc(thisx, SyncInterval, PresentFlags, pPresentParameters);
 }
 
+HRESULT __cdecl getBufferHook(IDXGISwapChain3* thisx, UINT Buffer, REFIID riid, void **ppSurface) {
+    HRESULT result = getBufferProc(thisx, Buffer, riid, ppSurface);
+
+    ID3D12Resource* pSurface = *reinterpret_cast<ID3D12Resource**>(ppSurface);
+    mainRenderTargetResource[Buffer] = pSurface;
+
+    return result;
+}
+
 bool hookGame(std::uint64_t moduleAddress) {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
     const std::vector<std::uintptr_t> frameProcOffsets{ 0x3E8, 0x0, 0x20 };
-    // IDXGISwapChain4 Present1 vtable entry
-    const std::vector<std::uintptr_t> presentProcOffsets{ 0x460, 0x18, 0x0, 0xB0 };
+    // IDXGISwapChain3 vftable
+    const std::vector<std::uintptr_t> swapChain3VFtableOffsets{ 0x460, 0x0, 0x0 };
 
     std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
+    std::uintptr_t swapChain3VFtable = 0;
 
     if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets)) {
         frameProcPtr = reinterpret_cast<GameFrameProc*>(*ptr);
@@ -401,14 +437,20 @@ bool hookGame(std::uint64_t moduleAddress) {
         return false;
     }
 
-    if (auto ptr = followPointerChain(pointerStruct, presentProcOffsets)) {
-        presentProcPtr = reinterpret_cast<PresentProc*>(*ptr);
+    if (auto ptr = followPointerChain(pointerStruct, swapChain3VFtableOffsets); *ptr != 0) {
+        swapChain3VFtable = *ptr;
     } else {
         return false;
     }
 
+    // IDXGISwapChain3 IDXGISwapChain1::Present1 vftable entry
+    presentProcPtr = reinterpret_cast<Present1Proc*>(swapChain3VFtable + 22 * 8);
+    // IDXGISwapChain3 IDXGISwapChain::GetBuffer vftable entry
+    getBufferProcPtr = reinterpret_cast<GetBufferProc*>(swapChain3VFtable + 9 * 8);
+
     if (*frameProcPtr == nullptr) return false;
     if (*presentProcPtr == nullptr) return false;
+    if (*getBufferProcPtr == nullptr) return false;
 
     {
         DWORD originalProt = 0;
@@ -426,10 +468,24 @@ bool hookGame(std::uint64_t moduleAddress) {
         VirtualProtect(presentProcPtr, sizeof(presentProcPtr), originalProt, &originalProt);
     }
 
+    {
+        DWORD originalProt = 0;
+        VirtualProtect(getBufferProcPtr, sizeof(getBufferProcPtr), PAGE_READWRITE, &originalProt);
+        getBufferProc = *getBufferProcPtr;
+        *getBufferProcPtr = getBufferHook;
+        VirtualProtect(getBufferProcPtr, sizeof(getBufferProcPtr), originalProt, &originalProt);
+    }
+
     return true;
 }
 
 DWORD WINAPI entry(LPVOID lpParameter) {
+    // TODO: Don't debug D3D12 once stabilized.
+    ID3D12Debug* debugController = nullptr;
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+        debugController->EnableDebugLayer();
+    }
+
     char modulePath[MAX_PATH];
     GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
 
