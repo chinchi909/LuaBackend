@@ -370,7 +370,7 @@ HRESULT __cdecl presentHook(IDXGISwapChain3* thisx, UINT SyncInterval, UINT Pres
 
         ImGui_ImplWin32_Init(hwnd);
         ImGui_ImplDX12_Init(*ppdx12Device, 1,
-            DXGI_FORMAT_R8G8B8A8_UNORM, pdx12SrvDescHeap,
+            DXGI_FORMAT_B8G8R8A8_UNORM, pdx12SrvDescHeap,
             pdx12SrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
             pdx12SrvDescHeap->GetGPUDescriptorHandleForHeapStart());
 
