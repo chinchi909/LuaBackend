@@ -24,7 +24,7 @@
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
     { "KINGDOM HEARTS FINAL MIX.exe", { 0x22B7280, 0x3A0606, "kh1" } },
     { "KINGDOM HEARTS Re_Chain of Memories.exe", { 0xBF7A80, 0x4E4660, "recom" } },
-    { "KINGDOM HEARTS II FINAL MIX.exe", { 0x89E9A0, 0x56450E, "kh2" } },
+    { "KINGDOM HEARTS II FINAL MIX.exe", { 0x89E9A0, 0x56454E, "kh2" } },
     { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { 0x110B5970, 0x60E334, "bbs" } },
 };
 
@@ -103,7 +103,7 @@ extern "C"
 		ShowWindow(GetConsoleWindow(), SW_HIDE);
 
 		cout << "======================================" << "\n";
-		cout << "======= LuaBackendHook | v1.2.0 ======" << "\n";
+		cout << "======= LuaBackendHook | v1.2.1 ======" << "\n";
 		cout << "====== Copyright 2021 - TopazTK ======" << "\n";
 		cout << "======================================" << "\n";
 		cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
