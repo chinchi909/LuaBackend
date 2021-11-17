@@ -20,9 +20,9 @@ jobs:
         mkdir build && cd build
         cmake ..
         cmake --build . --config Release
-    - name: Upload DINPUT8
+    - name: Upload DBGHELP
       uses: actions/upload-artifact@v2
       with:
-        name: DINPUT8
+        name: DBGHELP
         path: |
-          build/Release/DINPUT8.dll
+          build/Release/DBGHELP.dll

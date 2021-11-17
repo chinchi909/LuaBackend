@@ -20,7 +20,7 @@ jobs:
         cmake --build . --config Release
     - name: Compress Artifacts
       run: |
-        7z a DINPUT8.zip ./build/Release/DINPUT8.dll
+        7z a DBGHELP.zip ./build/Release/DBGHELP.dll
     - name: Automatic Release
       uses: marvinpinto/action-automatic-releases@latest
       with:
@@ -28,4 +28,4 @@ jobs:
         prerelease: false
         draft: true
         files: |
-          DINPUT8.zip
+          DBGHELP.zip

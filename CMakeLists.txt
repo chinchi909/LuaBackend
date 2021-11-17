@@ -28,10 +28,10 @@ target_link_libraries(LuaBackendLIB PUBLIC lua54.lib PUBLIC discord-rpc.lib)
 
 target_compile_definitions(LuaBackendLIB PRIVATE -DUNICODE -D_UNICODE)
 
-# DINPUT8
+# DBGHELP
 
-add_library(DINPUT8 SHARED LuaBackendDLL/main_dll.cpp)
+add_library(DBGHELP SHARED LuaBackendDLL/main_dll.cpp)
 
-target_compile_definitions(DINPUT8 PRIVATE -DUNICODE -D_UNICODE)
+target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
 
-target_link_libraries(DINPUT8 LuaBackendLIB)
+target_link_libraries(DBGHELP LuaBackendLIB)

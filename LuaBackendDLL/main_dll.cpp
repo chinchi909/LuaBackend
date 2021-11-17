@@ -30,10 +30,19 @@ const std::unordered_map<std::string_view, GameInfo> gameInfos{
 
 namespace fs = std::filesystem;
 
-using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter);
+using MiniDumpWriteDumpProc = BOOL(WINAPI*)(
+    HANDLE hProcess,
+    DWORD ProcessId,
+    HANDLE hFile,
+    DWORD DumpType,
+    PVOID ExceptionParam,
+    PVOID UserStreamParam,
+    PVOID CallbackParam
+);
+
 using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
 
-DirectInput8CreateProc createProc = nullptr;
+MiniDumpWriteDumpProc writeDumpProc = nullptr;
 
 GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
@@ -344,15 +353,15 @@ DWORD WINAPI entry(LPVOID lpParameter) {
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
-    static HMODULE dinput8 = nullptr;
+    static HMODULE dbgHelp = nullptr;
 
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH: {
             char dllPath[MAX_PATH];
             GetSystemDirectoryA(dllPath, MAX_PATH);
-            std::strcat(dllPath, "\\DINPUT8.dll");
-            dinput8 = LoadLibraryA(dllPath);
-            createProc = (DirectInput8CreateProc)GetProcAddress(dinput8, "DirectInput8Create");
+            std::strcat(dllPath, "\\DBGHELP.dll");
+            dbgHelp = LoadLibraryA(dllPath);
+            writeDumpProc = (MiniDumpWriteDumpProc)GetProcAddress(dbgHelp, "MiniDumpWriteDump");
 
             if (CreateThread(nullptr, 0, entry, nullptr, 0, nullptr) == nullptr) {
                 return FALSE;
@@ -361,7 +370,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
             break;
         }
         case DLL_PROCESS_DETACH: {
-            FreeLibrary(dinput8);
+            FreeLibrary(dbgHelp);
             break;
         }
         default:
@@ -371,6 +380,14 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     return TRUE;
 }
 
-extern "C" __declspec(dllexport) HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter) {
-    return createProc(hinst, dwVersion, riidltf, ppvOut, punkOuter);
+extern "C" __declspec(dllexport) BOOL WINAPI MiniDumpWriteDump(
+    HANDLE hProcess,
+    DWORD ProcessId,
+    HANDLE hFile,
+    DWORD DumpType,
+    PVOID ExceptionParam,
+    PVOID UserStreamParam,
+    PVOID CallbackParam
+) {
+    return writeDumpProc(hProcess, ProcessId, hFile, DumpType, ExceptionParam, UserStreamParam, CallbackParam);
 }
