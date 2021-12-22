@@ -161,7 +161,7 @@ class MemoryLib
 
     template <typename T, std::enable_if_t<std::is_trivially_copy_assignable_v<T>, int> = 0>
     static void writeScalarAbsolute(uint64_t Address, T t) {
-        WriteProcessMemory(PHandle, (void*)Address, &t, sizeof(T), nullptr);
+        WriteBytesRaw(Address, &t, sizeof(T));
     }
 
     static uint8_t ReadByte(uint64_t Address, bool absolute = false) { return readScalar<uint8_t>(Address, absolute); }
@@ -243,16 +243,24 @@ class MemoryLib
     static void WriteFloatAbsolute(uint64_t Address, float Input) { writeScalarAbsolute<float>(Address, Input); }
     static void WriteBoolAbsolute(uint64_t Address, bool Input) { WriteByteAbsolute(Address, Input ? 1 : 0); }
 
+    inline static void WriteBytesRaw(uint64_t Address, const void* Input, size_t Length) {
+        if (WriteProcessMemory(PHandle, (void*)Address, Input, Length, nullptr) == 0) {
+            DWORD oldProtect = 0;
+            VirtualProtect((void*)Address, Length, PAGE_EXECUTE_READWRITE, &oldProtect);
+            WriteProcessMemory(PHandle, (void*)Address, Input, Length, nullptr);
+        }
+    }
+
     static void WriteBytesAbsolute(uint64_t Address, vector<uint8_t> Input) {
-        WriteProcessMemory(PHandle, (void*)Address, Input.data(), Input.size(), nullptr);
+        WriteBytesRaw(Address, Input.data(), Input.size());
     }
 
     static void WriteStringAbsolute(uint64_t Address, string Input) {
-        WriteProcessMemory(PHandle, (void*)Address, Input.data(), Input.size(), nullptr);
+        WriteBytesRaw(Address, Input.data(), Input.size());
     }
 
     static void WriteExec(uint64_t Address, vector<uint8_t> Input) {
-        WriteProcessMemory(PHandle, (void*)(Address + ExecAddress), Input.data(), Input.size(), nullptr);
+        WriteBytesRaw(Address + ExecAddress, Input.data(), Input.size());
     }
 
     static uint64_t GetPointer(uint64_t Address, uint64_t Offset, bool absolute = false) {
