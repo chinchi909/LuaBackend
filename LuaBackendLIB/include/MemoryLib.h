@@ -20,29 +20,6 @@ class MemoryLib
         static inline PROCESS_INFORMATION _pInfo;
         static inline bool _bigEndian = false;
 
-        class protect_lock {
-        private:
-            uintptr_t address;
-            size_t size;
-            DWORD protection;
-            bool is_acquired;
-
-        public:
-            protect_lock(uintptr_t address, size_t size) : address(address), size(size), protection(0), is_acquired(false) {
-                if (VirtualProtect((void*)address, size, PAGE_READWRITE, &protection) != 0)
-                    is_acquired = true;
-            }
-
-            ~protect_lock() {
-                if (good())
-                    VirtualProtect((void*)address, size, protection, &protection);
-            }
-
-            bool good() const noexcept {
-                return is_acquired;
-            }
-        };
-
     public:
         static inline uint64_t ExecAddress;
         static inline uint64_t BaseAddress;
@@ -165,11 +142,12 @@ class MemoryLib
 
     template <typename T, std::enable_if_t<std::is_trivially_constructible_v<T>, int> = 0>
     static T readScalarAbsolute(uint64_t Address) {
-        protect_lock lock(Address, sizeof(T));
-        if (!lock.good())
-            return 0;
+        T t;
+        if (ReadProcessMemory(PHandle, (void*)Address, &t, sizeof(T), nullptr) == 0) {
+            t = T{};
+        }
 
-        return *reinterpret_cast<T*>(Address);
+        return t;
     }
 
     template <typename T>
@@ -183,11 +161,7 @@ class MemoryLib
 
     template <typename T, std::enable_if_t<std::is_trivially_copy_assignable_v<T>, int> = 0>
     static void writeScalarAbsolute(uint64_t Address, T t) {
-        protect_lock lock(Address, sizeof(T));
-        if (!lock.good())
-            return;
-
-        *reinterpret_cast<T*>(Address) = t;
+        WriteProcessMemory(PHandle, (void*)Address, &t, sizeof(T), nullptr);
     }
 
     static uint8_t ReadByte(uint64_t Address, bool absolute = false) { return readScalar<uint8_t>(Address, absolute); }
@@ -244,12 +218,9 @@ class MemoryLib
     static bool ReadBoolAbsolute(uint64_t Address) { return ReadByteAbsolute(Address) != 0; }
 
     static vector<uint8_t> ReadBytesAbsolute(uint64_t Address, int Length) {
-        vector<uint8_t> _buffer;
-
-        protect_lock lock(Address, static_cast<size_t>(Length));
-        if (lock.good()) {
-            _buffer.resize(Length);
-            std::memcpy(_buffer.data(), (void*)Address, Length);
+        vector<uint8_t> _buffer(Length);
+        if (ReadProcessMemory(PHandle, (void*)Address, _buffer.data(), _buffer.size(), nullptr) == 0) {
+            std::memset(_buffer.data(), 0, _buffer.size());
         }
 
         return _buffer;
@@ -257,11 +228,9 @@ class MemoryLib
 
     static string ReadStringAbsolute(uint64_t Address, int Length) {
         string _output;
-
-        protect_lock lock(Address, static_cast<size_t>(Length));
-        if (lock.good()) {
-            _output.resize(Length);
-            std::memcpy(_output.data(), (void*)Address, Length);
+        _output.resize(Length);
+        if (ReadProcessMemory(PHandle, (void*)Address, _output.data(), _output.size(), nullptr) == 0) {
+            std::memset(_output.data(), 0, _output.size());
         }
 
         return _output;
@@ -275,21 +244,15 @@ class MemoryLib
     static void WriteBoolAbsolute(uint64_t Address, bool Input) { WriteByteAbsolute(Address, Input ? 1 : 0); }
 
     static void WriteBytesAbsolute(uint64_t Address, vector<uint8_t> Input) {
-        protect_lock lock(Address, Input.size());
-        if (lock.good())
-            std::memcpy((void*)Address, Input.data(), Input.size());
+        WriteProcessMemory(PHandle, (void*)Address, Input.data(), Input.size(), nullptr);
     }
 
     static void WriteStringAbsolute(uint64_t Address, string Input) {
-        protect_lock lock(Address, Input.size());
-        if (lock.good())
-            std::memcpy((void*)Address, Input.data(), Input.size());
+        WriteProcessMemory(PHandle, (void*)Address, Input.data(), Input.size(), nullptr);
     }
 
     static void WriteExec(uint64_t Address, vector<uint8_t> Input) {
-        protect_lock lock(Address, Input.size());
-        if (lock.good())
-            std::memcpy((void*)(Address + ExecAddress), Input.data(), Input.size());
+        WriteProcessMemory(PHandle, (void*)(Address + ExecAddress), Input.data(), Input.size(), nullptr);
     }
 
     static uint64_t GetPointer(uint64_t Address, uint64_t Offset, bool absolute = false) {
