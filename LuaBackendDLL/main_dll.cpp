@@ -292,8 +292,8 @@ LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionPointers) {
         mdei.ExceptionPointers = exceptionPointers;
         mdei.ClientPointers = TRUE;
 
-        (*writeDumpProc)( GetCurrentProcess(), GetCurrentProcessId(),
-            file, MiniDumpNormal, (exceptionPointers != 0) ? &mdei : 0, 0, 0 );
+        (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(),
+            file, MiniDumpNormal, (exceptionPointers != 0) ? &mdei : 0, 0, 0);
 
         CloseHandle(file);
     }
