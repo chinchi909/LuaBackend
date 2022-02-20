@@ -11,6 +11,10 @@
 #include <windows.h>
 #include <shlobj.h>
 
+#define MiniDumpWriteDump MiniDumpWriteDump_Original
+#include <minidumpapiset.h>
+#undef MiniDumpWriteDump
+
 #include <MemoryLib.h>
 #include <LuaBackend.h>
 #include <mIni/ini.h>
@@ -30,15 +34,7 @@ const std::unordered_map<std::string_view, GameInfo> gameInfos{
 
 namespace fs = std::filesystem;
 
-using MiniDumpWriteDumpProc = BOOL(WINAPI*)(
-    HANDLE hProcess,
-    DWORD ProcessId,
-    HANDLE hFile,
-    DWORD DumpType,
-    PVOID ExceptionParam,
-    PVOID UserStreamParam,
-    PVOID CallbackParam
-);
+using MiniDumpWriteDumpProc = decltype(&MiniDumpWriteDump_Original);
 
 using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
 
@@ -51,119 +47,119 @@ std::optional<GameInfo> gameInfo{};
 
 extern "C"
 {
-	using namespace std;
-	using namespace mINI;
+    using namespace std;
+    using namespace mINI;
 
-	bool _funcOneState = true;
-	bool _funcTwoState = true; 
-	bool _funcThreeState = true;
+    bool _funcOneState = true;
+    bool _funcTwoState = true;
+    bool _funcThreeState = true;
 
-	string _scrPath;
+    string _scrPath;
 
-	bool _showConsole = false;
-	bool _requestedReset = false;
-	
-	LuaBackend* _backend = nullptr;
+    bool _showConsole = false;
+    bool _requestedReset = false;
 
-	chrono::high_resolution_clock::time_point _sClock;
-	chrono::high_resolution_clock::time_point _msClock;
+    LuaBackend* _backend = nullptr;
 
-	void EnterWait()
-	{
-		string _output;
-		getline(std::cin, _output);
-		return;
-	}
+    chrono::high_resolution_clock::time_point _sClock;
+    chrono::high_resolution_clock::time_point _msClock;
 
-	void ResetLUA()
-	{
-		printf("\n");
-		ConsoleLib::MessageOutput("Reloading...\n\n", 0);
-		_backend = new LuaBackend(_scrPath.c_str(), MemoryLib::ExecAddress + MemoryLib::BaseAddress);
+    void EnterWait()
+    {
+        string _output;
+        getline(std::cin, _output);
+        return;
+    }
 
-		if (_backend->loadedScripts.size() == 0)
-			ConsoleLib::MessageOutput("No scripts found! Reload halted!\n\n", 3);
+    void ResetLUA()
+    {
+        printf("\n");
+        ConsoleLib::MessageOutput("Reloading...\n\n", 0);
+        _backend = new LuaBackend(_scrPath.c_str(), MemoryLib::ExecAddress + MemoryLib::BaseAddress);
 
-		ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);
+        if (_backend->loadedScripts.size() == 0)
+            ConsoleLib::MessageOutput("No scripts found! Reload halted!\n\n", 3);
 
-		for (auto _script : _backend->loadedScripts)
-			if (_script->initFunction)
-			{
-				auto _result = _script->initFunction();
+        ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);
 
-				if (!_result.valid())
-				{
-					sol::error _err = _result;
-					ConsoleLib::MessageOutput(_err.what(), 3);
-					printf("\n\n");
-				}
-			}
+        for (auto _script : _backend->loadedScripts)
+            if (_script->initFunction)
+            {
+                auto _result = _script->initFunction();
 
-		ConsoleLib::MessageOutput("Reload complete!\n\n", 1);
+                if (!_result.valid())
+                {
+                    sol::error _err = _result;
+                    ConsoleLib::MessageOutput(_err.what(), 3);
+                    printf("\n\n");
+                }
+            }
 
-		_msClock = chrono::high_resolution_clock::now();
-		_sClock = chrono::high_resolution_clock::now();
+        ConsoleLib::MessageOutput("Reload complete!\n\n", 1);
 
-		_requestedReset = false;
-	}
+        _msClock = chrono::high_resolution_clock::now();
+        _sClock = chrono::high_resolution_clock::now();
 
-	int __declspec(dllexport) EntryLUA(int ProcessID, HANDLE ProcessH, uint64_t TargetAddress, const char* ScriptPath)
-	{
-		ShowWindow(GetConsoleWindow(), SW_HIDE);
+        _requestedReset = false;
+    }
 
-		cout << "======================================" << "\n";
-		cout << "======= LuaBackendHook | v1.2.1 ======" << "\n";
-		cout << "====== Copyright 2021 - TopazTK ======" << "\n";
-		cout << "======================================" << "\n";
-		cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
-		cout << "========== Embedded Version ==========" << "\n";
-		cout << "======================================" << "\n\n";
+    int __declspec(dllexport) EntryLUA(int ProcessID, HANDLE ProcessH, uint64_t TargetAddress, const char* ScriptPath)
+    {
+        ShowWindow(GetConsoleWindow(), SW_HIDE);
 
-		ConsoleLib::MessageOutput("Initializing LuaEngine v5.0...\n\n", 0);
-		_scrPath = string(ScriptPath);
+        cout << "======================================" << "\n";
+        cout << "======= LuaBackendHook | v1.2.1 ======" << "\n";
+        cout << "====== Copyright 2021 - TopazTK ======" << "\n";
+        cout << "======================================" << "\n";
+        cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
+        cout << "========== Embedded Version ==========" << "\n";
+        cout << "======================================" << "\n\n";
 
-		MemoryLib::ExternProcess(ProcessID, ProcessH, TargetAddress);
+        ConsoleLib::MessageOutput("Initializing LuaEngine v5.0...\n\n", 0);
+        _scrPath = string(ScriptPath);
 
-		_backend = new LuaBackend(ScriptPath, MemoryLib::ExecAddress + TargetAddress);
-		_backend->frameLimit = 16;
+        MemoryLib::ExternProcess(ProcessID, ProcessH, TargetAddress);
 
-		if (_backend->loadedScripts.size() == 0)
-		{
-			ConsoleLib::MessageOutput("No scripts were found! Initialization halted!\n\n", 3);
-			return -1;
-		}
-		
-		ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);
+        _backend = new LuaBackend(ScriptPath, MemoryLib::ExecAddress + TargetAddress);
+        _backend->frameLimit = 16;
 
-		for (auto _script : _backend->loadedScripts)
-			if (_script->initFunction)
-			{
-				auto _result = _script->initFunction();
+        if (_backend->loadedScripts.size() == 0)
+        {
+            ConsoleLib::MessageOutput("No scripts were found! Initialization halted!\n\n", 3);
+            return -1;
+        }
 
-				if (!_result.valid())
-				{
-					sol::error _err = _result;
-					ConsoleLib::MessageOutput(_err.what(), 3);
-					printf("\n\n");
-				}
-			}
+        ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);
 
-		ConsoleLib::MessageOutput("Initialization complete!\n", 1);
-		ConsoleLib::MessageOutput("Press 'F1' to reload all scripts, press 'F2' to toggle the console, press 'F3' to set execution frequency.\n\n", 0);
+        for (auto _script : _backend->loadedScripts)
+            if (_script->initFunction)
+            {
+                auto _result = _script->initFunction();
 
-		_msClock = chrono::high_resolution_clock::now();
-		_sClock = chrono::high_resolution_clock::now();
+                if (!_result.valid())
+                {
+                    sol::error _err = _result;
+                    ConsoleLib::MessageOutput(_err.what(), 3);
+                    printf("\n\n");
+                }
+            }
 
-		return 0;
-	}
+        ConsoleLib::MessageOutput("Initialization complete!\n", 1);
+        ConsoleLib::MessageOutput("Press 'F1' to reload all scripts, press 'F2' to toggle the console, press 'F3' to set execution frequency.\n\n", 0);
 
-	void __declspec(dllexport) ExecuteLUA()
-	{
-		if (_requestedReset == false)
-		{
-			auto _currTime = chrono::high_resolution_clock::now();
-			auto _msTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _msClock).count();
-			auto _sTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _sClock).count();
+        _msClock = chrono::high_resolution_clock::now();
+        _sClock = chrono::high_resolution_clock::now();
+
+        return 0;
+    }
+
+    void __declspec(dllexport) ExecuteLUA()
+    {
+        if (_requestedReset == false)
+        {
+            auto _currTime = chrono::high_resolution_clock::now();
+            auto _msTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _msClock).count();
+            auto _sTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _sClock).count();
 
             if (GetKeyState(VK_F3) & 0x8000 && _funcThreeState)
             {
@@ -235,33 +231,33 @@ extern "C"
 
             _msClock = chrono::high_resolution_clock::now();
 
-			if (_sTime > 250)
-			{
-				_funcOneState = true;
-				_funcTwoState = true;
-				_funcThreeState = true;
-				_sClock = chrono::high_resolution_clock::now();
-			}
-		}
+            if (_sTime > 250)
+            {
+                _funcOneState = true;
+                _funcTwoState = true;
+                _funcThreeState = true;
+                _sClock = chrono::high_resolution_clock::now();
+            }
+        }
 
-		else
-			ResetLUA();
-	}
+        else
+            ResetLUA();
+    }
 
-	bool __declspec(dllexport) CheckLUA()
-	{
-		auto _int = MemoryLib::ReadInt(0);
+    bool __declspec(dllexport) CheckLUA()
+    {
+        auto _int = MemoryLib::ReadInt(0);
 
-		if (_int == 0)
-			return false;
+        if (_int == 0)
+            return false;
 
-		return true;
-	}
+        return true;
+    }
 
-	int __declspec(dllexport) VersionLUA()
-	{
-		return 128;
-	}
+    int __declspec(dllexport) VersionLUA()
+    {
+        return 128;
+    }
 }
 
 std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const std::vector<std::uintptr_t>& offsets) {
@@ -285,8 +281,30 @@ std::uint64_t __cdecl frameHook(void* rcx) {
     return frameProc(rcx);
 }
 
+LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionPointers) {
+    HANDLE file = CreateFileA("CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0,
+        NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (file != NULL) {
+        MINIDUMP_EXCEPTION_INFORMATION mdei;
+
+        mdei.ThreadId = GetCurrentThreadId();
+        mdei.ExceptionPointers = exceptionPointers;
+        mdei.ClientPointers = TRUE;
+
+        (*writeDumpProc)( GetCurrentProcess(), GetCurrentProcessId(),
+            file, MiniDumpNormal, (exceptionPointers != 0) ? &mdei : 0, 0, 0 );
+
+        CloseHandle(file);
+    }
+
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 bool hookGame(std::uint64_t moduleAddress) {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
+
+    SetUnhandledExceptionFilter(crashHandler);
 
     const std::vector<std::uintptr_t> frameProcOffsets{ 0x3E8, 0x0, 0x20 };
     const std::vector<std::uintptr_t> graphicsProcOffsets{ 0x2D8 };
@@ -345,7 +363,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(16));
             }
         } else {
-            std::cout << "Failed to initialize internal LuaBackend!" << std::endl;    
+            std::cout << "Failed to initialize internal LuaBackend!" << std::endl;
         }
     }
 
@@ -384,10 +402,10 @@ extern "C" __declspec(dllexport) BOOL WINAPI MiniDumpWriteDump(
     HANDLE hProcess,
     DWORD ProcessId,
     HANDLE hFile,
-    DWORD DumpType,
-    PVOID ExceptionParam,
-    PVOID UserStreamParam,
-    PVOID CallbackParam
+    MINIDUMP_TYPE DumpType,
+    PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+    PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+    PMINIDUMP_CALLBACK_INFORMATION CallbackParam
 ) {
     return writeDumpProc(hProcess, ProcessId, hFile, DumpType, ExceptionParam, UserStreamParam, CallbackParam);
 }
