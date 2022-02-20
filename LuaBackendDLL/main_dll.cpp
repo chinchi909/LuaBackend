@@ -285,7 +285,7 @@ LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionPointers) {
     HANDLE file = CreateFileA("CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0,
         NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-    if (file != NULL) {
+    if (file != INVALID_HANDLE_VALUE) {
         MINIDUMP_EXCEPTION_INFORMATION mdei;
 
         mdei.ThreadId = GetCurrentThreadId();
