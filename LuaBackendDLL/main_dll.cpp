@@ -26,10 +26,10 @@
 #include <thread>
 
 const std::unordered_map<std::string_view, GameInfo> gameInfos{
-    { "KINGDOM HEARTS FINAL MIX.exe", { 0x22B7280, 0x3A0606, "kh1" } },
-    { "KINGDOM HEARTS Re_Chain of Memories.exe", { 0xBF7A80, 0x4E4660, "recom" } },
-    { "KINGDOM HEARTS II FINAL MIX.exe", { 0x89E9A0, 0x56454E, "kh2" } },
-    { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { 0x110B5970, 0x60E334, "bbs" } },
+    { "KINGDOM HEARTS FINAL MIX.exe", { 0x22B7280, 0x3A0606, 0, "kh1" } },
+    { "KINGDOM HEARTS Re_Chain of Memories.exe", { 0xBF7A80, 0x4E4660, 0, "recom" } },
+    { "KINGDOM HEARTS II FINAL MIX.exe", { 0x89E9A0, 0x56454E, 0x12B350, "kh2" } },
+    { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { 0x110B5970, 0x60E334, 0, "bbs" } },
 };
 
 namespace fs = std::filesystem;
@@ -44,6 +44,7 @@ GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
 
 std::optional<GameInfo> gameInfo{};
+std::uint64_t moduleAddress;
 
 extern "C"
 {
@@ -281,49 +282,49 @@ std::uint64_t __cdecl frameHook(void* rcx) {
     return frameProc(rcx);
 }
 
-LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionPointers) {
-    HANDLE file = CreateFileA("CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0,
-        NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionInfo) {
+    PCONTEXT ctx = exceptionInfo->ContextRecord;
 
-    if (file != INVALID_HANDLE_VALUE) {
-        MINIDUMP_EXCEPTION_INFORMATION mdei;
+    if (ctx->Rip == moduleAddress + gameInfo->hookAddress) {
+        ctx->Rax = *reinterpret_cast<std::uintptr_t*>(ctx->Rcx);
+        ctx->Rip += 3;
 
-        mdei.ThreadId = GetCurrentThreadId();
-        mdei.ExceptionPointers = exceptionPointers;
-        mdei.ClientPointers = TRUE;
+        ExecuteLUA();
 
-        (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(),
-            file, MiniDumpNormal, (exceptionPointers != 0) ? &mdei : 0, 0, 0);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    } else if (exceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
+        HANDLE file = CreateFileA("CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0,
+            NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-        CloseHandle(file);
+        if (file != INVALID_HANDLE_VALUE) {
+            MINIDUMP_EXCEPTION_INFORMATION mdei;
+
+            mdei.ThreadId = GetCurrentThreadId();
+            mdei.ExceptionPointers = exceptionInfo;
+            mdei.ClientPointers = TRUE;
+
+            (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(),
+                file, MiniDumpNormal, (exceptionInfo != NULL) ? &mdei : 0, 0, 0);
+
+            CloseHandle(file);
+        }
     }
 
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
-bool hookGame(std::uint64_t moduleAddress) {
+bool hookGame() {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
-    SetUnhandledExceptionFilter(crashHandler);
-
-    const std::vector<std::uintptr_t> frameProcOffsets{ 0x3E8, 0x0, 0x20 };
-    const std::vector<std::uintptr_t> graphicsProcOffsets{ 0x2D8 };
-
-    std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
-
-    if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets)) {
-        frameProcPtr = reinterpret_cast<GameFrameProc*>(*ptr);
-    } else {
-        return false;
-    }
-
-    if (*frameProcPtr == nullptr) return false;
+    void* hookAddress = reinterpret_cast<void*>(moduleAddress + gameInfo->hookAddress);
+    std::uint8_t hook[] = { 0xCC, 0x90, 0x90 };
 
     DWORD originalProt = 0;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
-    frameProc = *frameProcPtr;
-    *frameProcPtr = frameHook;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
+    VirtualProtect(hookAddress, 3, PAGE_READWRITE, &originalProt);
+    std::memcpy(hookAddress, hook, sizeof(hook));
+    VirtualProtect(hookAddress, 3, originalProt, &originalProt);
+
+    AddVectoredExceptionHandler(0, crashHandler);
 
     return true;
 }
@@ -345,8 +346,8 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         return 0;
     }
 
-    uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
-    uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
+    moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
+    std::uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
     char scriptsPath[MAX_PATH];
     SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsPath);
     std::strcat(scriptsPath, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
@@ -359,7 +360,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
 
         if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, gameScriptsPath.u8string().c_str()) == 0) {
             // TODO: Hook after game initialization is done.
-            while (!hookGame(moduleAddress)) {
+            while (!hookGame()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(16));
             }
         } else {
