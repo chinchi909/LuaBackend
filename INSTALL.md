@@ -17,6 +17,9 @@ the F2 key on the keyboard in game.
 A configuration file can be used to customize the script location(s).
 
 - Edit the file called `LuaBackend.toml` in the same folder as `DBGHELP.dll` (the game install folder).
+  - To edit the script paths, modify the `scripts` value.
+  - `path` is the game path for an entry.
+  - `relative`, when true, will append `path` to the `KINGDOM HEARTS HD 1.5+2.5 ReMIX` folder and will be an absolute path otherwise.
 - This file can contain location(s) in which to look for scripts for each game.
 - If _any_ valid locations are listed for a game, _only_ those location(s) are searched for scripts.
   This allows you to completely override the default location if the default location is causing problems.
@@ -33,7 +36,7 @@ exe = "KINGDOM HEARTS FINAL MIX.exe"
 
 [kh2]
 scripts = [
-  { path = "C:\Users\johndoe\Documents\KINGDOM HEARTS HD 1.5+2.5 ReMIX\scripts\kh2", relative = false },
+  { path = "scripts\kh2", relative = true },
   { path = "C:\Users\johndoe\bin\KH\PC\openkh\mod\luascript", relative = false },
 ]
 base = "56454E"
