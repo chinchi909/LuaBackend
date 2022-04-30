@@ -20,12 +20,15 @@ jobs:
         mkdir build && cd build
         cmake ..
         cmake --build . --config Release
+    - name: Copy Artifacts
+      run: |
+        mkdir artifacts
+        cp build/Release/DBGHELP.dll artifacts
+        cp dll/discord-rpc.dll artifacts
+        cp dll/Lua.dll artifacts
+        cp config/LuaBackend.toml artifacts
     - name: Upload DBGHELP
       uses: actions/upload-artifact@v2
       with:
         name: DBGHELP
-        path: |
-          build/Release/DBGHELP.dll
-          dll/discord-rpc.dll
-          dll/Lua.dll
-          config/LuaBackend.toml
+        path: artifacts
