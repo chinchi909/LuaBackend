@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <string_view>
 #include <vector>
+#include <fstream>
 
 #include <unordered_map>
 #include <optional>
@@ -11,13 +12,12 @@
 #include <windows.h>
 #include <shlobj.h>
 
-#define MiniDumpWriteDump MiniDumpWriteDump_Original
+#define MiniDumpWriteDump MiniDumpWriteDump_
 #include <minidumpapiset.h>
 #undef MiniDumpWriteDump
 
-#include <MemoryLib.h>
-#include <LuaBackend.h>
-#include <mIni/ini.h>
+#include "MemoryLib.h"
+#include "LuaBackend.h"
 
 #include "x86_64.h"
 #include "game_info.h"
@@ -34,7 +34,7 @@ const std::unordered_map<std::string_view, GameInfo> gameInfos{
 
 namespace fs = std::filesystem;
 
-using MiniDumpWriteDumpProc = decltype(&MiniDumpWriteDump_Original);
+using MiniDumpWriteDumpProc = decltype(&MiniDumpWriteDump_);
 
 using GameFrameProc = std::uint64_t(__cdecl*)(void* rcx);
 
@@ -48,7 +48,6 @@ std::optional<GameInfo> gameInfo{};
 extern "C"
 {
     using namespace std;
-    using namespace mINI;
 
     bool _funcOneState = true;
     bool _funcTwoState = true;
@@ -355,7 +354,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     if (fs::exists(scriptLocationsFile)) {
         string gameScriptsKey = "[" + string(gameInfo->scriptsPath) + "]";
 
-        ifstream input(scriptLocationsFile);
+        ifstream input(scriptLocationsFile.string());
         string line;
         BOOL inCorrectGame = false;
         while (getline(input, line)) {
@@ -377,7 +376,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
                 if (inCorrectGame) {
                     fs::path scriptPath = fs::path{ line };
                     if (fs::exists(scriptPath)) {
-                        scriptPaths.push_back(scriptPath.u8string());
+                        scriptPaths.push_back(scriptPath.string());
                     }
                 }
             }
@@ -394,7 +393,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
 
         fs::path gameScriptsPath = fs::path{ scriptsPath } / gameInfo->scriptsPath;
         if (fs::exists(gameScriptsPath)) {
-            scriptPaths.push_back(gameScriptsPath.u8string());
+            scriptPaths.push_back(gameScriptsPath.string());
         }
     }
 

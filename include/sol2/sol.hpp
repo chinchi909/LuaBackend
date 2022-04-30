@@ -616,6 +616,8 @@
 #include <utility>
 #include <type_traits>
 #include <string_view>
+#include <stdexcept>
+#include <limits>
 
 #if SOL_IS_ON(SOL_USE_CXX_LUA_I_) || SOL_IS_ON(SOL_USE_CXX_LUAJIT_I_)
 struct lua_State;

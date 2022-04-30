@@ -886,19 +886,7 @@ inline CRCType CRC::CalculateRemainder(const void * data, crcpp_size size, const
     if (lookupTable.GetParameters().reflectInput)
     {
         while (size--)
-        {
-#if defined(WIN32) || defined(_WIN32) || defined(WINCE)
-    // Disable warning about data loss when doing (remainder >> CHAR_BIT) when
-    // remainder is one byte long. The algorithm is still correct in this case,
-    // though it's possible that one additional machine instruction will be executed.
-#   pragma warning (push)
-#   pragma warning (disable : 4333)
-#endif
             remainder = static_cast<CRCType>((remainder >> CHAR_BIT) ^ lookupTable[static_cast<unsigned char>(remainder ^ *current++)]);
-#if defined(WIN32) || defined(_WIN32) || defined(WINCE)
-#   pragma warning (pop)
-#endif
-        }
     }
     else if (CRCWidth >= CHAR_BIT)
     {

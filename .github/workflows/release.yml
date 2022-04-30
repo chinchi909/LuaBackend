@@ -20,7 +20,7 @@ jobs:
         cmake --build . --config Release
     - name: Compress Artifacts
       run: |
-        7z a DBGHELP.zip ./build/Release/DBGHELP.dll
+        7z a DBGHELP.zip ./build/Release/DBGHELP.dll ./dll/discord-rpc.dll ./dll/Lua.dll
     - name: Automatic Release
       uses: marvinpinto/action-automatic-releases@latest
       with:

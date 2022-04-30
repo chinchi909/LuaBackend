@@ -1,7 +1,5 @@
 #include "LuaBackend.h"
-#include "CRC.h"
-
-string _pathStr = "";
+#include <crcpp/CRC32.h>
 
 LuaBackend::LuaBackend(vector<string> ScriptPaths, uint64_t BaseInput)
 {
@@ -157,7 +155,7 @@ void LuaBackend::SetFunctions(LuaState* _state)
 	_state->set_function("UpdateLImage", DCInstance::UpdateLImage);
 	_state->set_function("UpdateSImage", DCInstance::UpdateSImage);
 
-	_state->set_function("ULShift32", Operator32Lib::UnsignedShift32);
+	_state->set_function("ULShift32", [](uint32_t base, uint32_t shift) { return base << shift; });
 
 	_state->set_function("ConsolePrint", 
 		sol::overload(

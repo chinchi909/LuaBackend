@@ -26,3 +26,5 @@ jobs:
         name: DBGHELP
         path: |
           build/Release/DBGHELP.dll
+          dll/discord-rpc.dll
+          dll/Lua.dll
