@@ -101,7 +101,7 @@ extern "C"
         ShowWindow(GetConsoleWindow(), SW_HIDE);
 
         cout << "======================================" << "\n";
-        cout << "======= LuaBackendHook | v1.2.1 ======" << "\n";
+        cout << "======= LuaBackendHook | v1.5.0 ======" << "\n";
         cout << "====== Copyright 2021 - TopazTK ======" << "\n";
         cout << "======================================" << "\n";
         cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
@@ -347,11 +347,11 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     vector<string> scriptPaths;
     for (const auto& path : gameInfo->scriptPaths) {
         if (path.relative) {
-            char scriptsRoot[MAX_PATH];
-            SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsRoot);
-            std::strcat(scriptsRoot, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
+            char khDocsRoot[MAX_PATH];
+            SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, khDocsRoot);
+            std::strcat(khDocsRoot, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX");
 
-            fs::path gameScriptsPath = fs::path{scriptsRoot} / path.str;
+            fs::path gameScriptsPath = fs::path{khDocsRoot} / path.str;
             if (fs::exists(gameScriptsPath)) {
                 scriptPaths.push_back(gameScriptsPath.string());
             }
