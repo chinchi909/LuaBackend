@@ -28,3 +28,4 @@ jobs:
           build/Release/DBGHELP.dll
           dll/discord-rpc.dll
           dll/Lua.dll
+          config/LuaBackend.toml

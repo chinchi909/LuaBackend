@@ -21,16 +21,10 @@
 
 #include "x86_64.h"
 #include "game_info.h"
+#include "config.h"
 
 // TODO: Remove after init fix.
 #include <thread>
-
-const std::unordered_map<std::string_view, GameInfo> gameInfos{
-    { "KINGDOM HEARTS FINAL MIX.exe", { 0x22B7280, 0x3A0606, "kh1" } },
-    { "KINGDOM HEARTS Re_Chain of Memories.exe", { 0xBF7A80, 0x4E4660, "recom" } },
-    { "KINGDOM HEARTS II FINAL MIX.exe", { 0x89E9A0, 0x56454E, "kh2" } },
-    { "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe", { 0x110B5970, 0x60E334, "bbs" } },
-};
 
 namespace fs = std::filesystem;
 
@@ -43,7 +37,7 @@ MiniDumpWriteDumpProc writeDumpProc = nullptr;
 GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
 
-std::optional<GameInfo> gameInfo{};
+std::optional<GameInfo> gameInfo;
 
 extern "C"
 {
@@ -339,9 +333,10 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         gamesPath.remove_suffix(gamesPath.size() - pos);
     }
 
-    auto entry = gameInfos.find(moduleName);
-    if (entry != gameInfos.end()) {
-        gameInfo = entry->second;
+    const auto config = Config::load("LuaBackend.toml");
+    auto entry = config.gameInfo(std::string(moduleName));
+    if (entry) {
+        gameInfo = *entry;
     } else {
         return 0;
     }
@@ -349,51 +344,22 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
     uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
 
-    vector<string> scriptPaths = {};
-    fs::path scriptLocationsFile = fs::path{ gamesPath } / "LuaScriptLocations.txt";
-    if (fs::exists(scriptLocationsFile)) {
-        string gameScriptsKey = "[" + string(gameInfo->scriptsPath) + "]";
+    vector<string> scriptPaths;
+    for (const auto& path : gameInfo->scriptPaths) {
+        if (path.relative) {
+            char scriptsRoot[MAX_PATH];
+            SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsRoot);
+            std::strcat(scriptsRoot, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
 
-        ifstream input(scriptLocationsFile.string());
-        string line;
-        BOOL inCorrectGame = false;
-        while (getline(input, line)) {
-            size_t length = line.length();
-            if (length == 0) {
-                continue;
+            fs::path gameScriptsPath = fs::path{scriptsRoot} / path.str;
+            if (fs::exists(gameScriptsPath)) {
+                scriptPaths.push_back(gameScriptsPath.string());
             }
-
-            // Some crude parsing going on here, but seems preferable to bundling an entire parsing library
-            if (line.at(0) == '[') {
-                if (line == gameScriptsKey) {
-                    inCorrectGame = true;
-                }
-                else {
-                    inCorrectGame = false;
-                }
+        } else {
+            fs::path gameScriptsPath = fs::path{path.str};
+            if (fs::exists(gameScriptsPath)) {
+                scriptPaths.push_back(gameScriptsPath.string());
             }
-            else {
-                if (inCorrectGame) {
-                    fs::path scriptPath = fs::path{ line };
-                    if (fs::exists(scriptPath)) {
-                        scriptPaths.push_back(scriptPath.string());
-                    }
-                }
-            }
-        }
-
-        input.close();
-    }
-
-    if (scriptPaths.empty()) {
-        // Attempt to fall back to the scripts folder in Documents
-        char scriptsPath[MAX_PATH];
-        SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, scriptsPath);
-        std::strcat(scriptsPath, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX\\scripts");
-
-        fs::path gameScriptsPath = fs::path{ scriptsPath } / gameInfo->scriptsPath;
-        if (fs::exists(gameScriptsPath)) {
-            scriptPaths.push_back(gameScriptsPath.string());
         }
     }
 

@@ -2,10 +2,15 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <string_view>
+#include <string>
+
+struct ScriptPath {
+    std::string str;
+    bool relative;
+};
 
 struct GameInfo {
     std::uintptr_t pointerStructOffset;
     std::uintptr_t baseAddress;
-    std::string_view scriptsPath;
+    std::vector<ScriptPath> scriptPaths;
 };

@@ -1,0 +1,23 @@
+[kh1]
+scripts = [{ path = "kh1/", relative = true }]
+base = "3A0606"
+thread_struct = "22B7280"
+exe = "KINGDOM HEARTS FINAL MIX.exe"
+
+[kh2]
+scripts = [{ path = "kh2/", relative = true }]
+base = "56454E"
+thread_struct = "89E9A0"
+exe = "KINGDOM HEARTS II FINAL MIX.exe"
+
+[bbs]
+scripts = [{ path = "bbs/", relative = true }]
+base = "60E334"
+thread_struct = "110B5970"
+exe = "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe"
+
+[recom]
+scripts = [{ path = "recom/", relative = true }]
+base = "4E4660"
+thread_struct = "BF7A80"
+exe = "KINGDOM HEARTS Re_Chain of Memories.exe"
