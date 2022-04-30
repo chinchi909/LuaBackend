@@ -65,7 +65,7 @@ void LuaBackend::LoadScripts(vector<string> ScriptPaths, uint64_t BaseInput)
 			_script->luaState["GAME_ID"] = CRC::Calculate(_pathExe.c_str(), _pathExe.length(), CRC::CRC_32());
 			_script->luaState["BASE_ADDR"] = BaseInput;
 
-			string _filePath(_path.path().u8string());
+			string _filePath{_path.path().string()};
 
 			if (_path.path().extension() == ".lua")
 			{
