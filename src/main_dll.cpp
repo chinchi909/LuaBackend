@@ -306,7 +306,9 @@ LONG WINAPI mapCrashHandler(PEXCEPTION_POINTERS exceptionPointers) {
 
     if ((global && context->Rip == moduleAddress + 0x1914E0) || (!global && context->Rip == moduleAddress + 0x191320)) {
         context->Rip += 0x29;
-        ConsoleLib::MessageOutput("LuaBackend: Map crash detected and prevented.\n", 2);
+
+        ConsoleLib::MessageOutput("LuaBackend: Map crash detected and prevented. Stopped read to ", 2);
+        std::cout << "0x" << reinterpret_cast<void*>(context->Rbx) << "\n";
         return EXCEPTION_CONTINUE_EXECUTION;
     }
 
