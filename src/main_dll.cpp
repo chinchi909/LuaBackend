@@ -1,5 +1,6 @@
 #include <chrono>
 #include <iostream>
+#include <exception>
 #include <filesystem>
 #include <string_view>
 #include <vector>
@@ -333,48 +334,52 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         gamesPath.remove_suffix(gamesPath.size() - pos);
     }
 
-    const auto config = Config::load("LuaBackend.toml");
-    auto entry = config.gameInfo(std::string(moduleName));
-    if (entry) {
-        gameInfo = *entry;
-    } else {
-        return 0;
-    }
-
-    uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
-    uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
-
-    vector<string> scriptPaths;
-    for (const auto& path : gameInfo->scriptPaths) {
-        if (path.relative) {
-            char khDocsRoot[MAX_PATH];
-            SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, khDocsRoot);
-            std::strcat(khDocsRoot, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX");
-
-            fs::path gameScriptsPath = fs::path{khDocsRoot} / path.str;
-            if (fs::exists(gameScriptsPath)) {
-                scriptPaths.push_back(gameScriptsPath.string());
-            }
+    try {
+        const auto config = Config::load("LuaBackend.toml");
+        auto entry = config.gameInfo(std::string(moduleName));
+        if (entry) {
+            gameInfo = *entry;
         } else {
-            fs::path gameScriptsPath = fs::path{path.str};
-            if (fs::exists(gameScriptsPath)) {
-                scriptPaths.push_back(gameScriptsPath.string());
+            return 0;
+        }
+
+        uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
+        uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
+
+        vector<string> scriptPaths;
+        for (const auto& path : gameInfo->scriptPaths) {
+            if (path.relative) {
+                char khDocsRoot[MAX_PATH];
+                SHGetFolderPathA(0, CSIDL_MYDOCUMENTS, nullptr, 0, khDocsRoot);
+                std::strcat(khDocsRoot, "\\KINGDOM HEARTS HD 1.5+2.5 ReMIX");
+
+                fs::path gameScriptsPath = fs::path{khDocsRoot} / path.str;
+                if (fs::exists(gameScriptsPath)) {
+                    scriptPaths.push_back(gameScriptsPath.string());
+                }
+            } else {
+                fs::path gameScriptsPath = fs::path{path.str};
+                if (fs::exists(gameScriptsPath)) {
+                    scriptPaths.push_back(gameScriptsPath.string());
+                }
             }
         }
-    }
 
-    if (!scriptPaths.empty()) {
-        AllocConsole();
-        std::freopen("CONOUT$", "w", stdout);
+        if (!scriptPaths.empty()) {
+            AllocConsole();
+            std::freopen("CONOUT$", "w", stdout);
 
-        if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, scriptPaths) == 0) {
-            // TODO: Hook after game initialization is done.
-            while (!hookGame(moduleAddress)) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, scriptPaths) == 0) {
+                // TODO: Hook after game initialization is done.
+                while (!hookGame(moduleAddress)) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                }
+            } else {
+                std::cout << "Failed to initialize internal LuaBackend!" << std::endl;
             }
-        } else {
-            std::cout << "Failed to initialize internal LuaBackend!" << std::endl;
         }
+    } catch (std::exception& e) {
+        MessageBoxA(NULL, ("entry exception: " + std::string(e.what()) + "\n\nScripts failed to load.").c_str(), "LuaBackendHook", MB_ICONERROR | MB_OK);
     }
 
     return 0;
