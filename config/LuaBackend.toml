@@ -9,6 +9,7 @@ scripts = [{ path = "scripts/kh2/", relative = true }]
 base = "56454E"
 thread_struct = "89E9A0"
 exe = "KINGDOM HEARTS II FINAL MIX.exe"
+prevent_map_crash = true
 
 [bbs]
 scripts = [{ path = "scripts/bbs/", relative = true }]

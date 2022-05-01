@@ -38,7 +38,10 @@ MiniDumpWriteDumpProc writeDumpProc = nullptr;
 GameFrameProc* frameProcPtr = nullptr;
 GameFrameProc frameProc = nullptr;
 
+std::optional<Config> config;
 std::optional<GameInfo> gameInfo;
+
+std::uint64_t moduleAddress = 0;
 
 extern "C"
 {
@@ -275,7 +278,7 @@ std::uint64_t __cdecl frameHook(void* rcx) {
     return frameProc(rcx);
 }
 
-LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionPointers) {
+LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
     HANDLE file = CreateFileA("CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0,
         NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -295,10 +298,23 @@ LONG WINAPI crashHandler(PEXCEPTION_POINTERS exceptionPointers) {
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
-bool hookGame(std::uint64_t moduleAddress) {
-    static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
+LONG WINAPI mapCrashHandler(PEXCEPTION_POINTERS exceptionPointers) {
+    PCONTEXT context = exceptionPointers->ContextRecord;
 
-    SetUnhandledExceptionFilter(crashHandler);
+    // 0x68 for global, 0x66 for jp
+    bool global = *reinterpret_cast<std::uint8_t*>(moduleAddress + 0x17D) == 0x68;
+
+    if ((global && context->Rip == moduleAddress + 0x1914E0) || (!global && context->Rip == moduleAddress + 0x191320)) {
+        context->Rip += 0x29;
+        ConsoleLib::MessageOutput("LuaBackend: Map crash detected and prevented.\n", 2);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+bool hookGame(std::uint64_t moduleAddress, const std::string& exe) {
+    static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
     const std::vector<std::uintptr_t> frameProcOffsets{ 0x3E8, 0x0, 0x20 };
     const std::vector<std::uintptr_t> graphicsProcOffsets{ 0x2D8 };
@@ -319,6 +335,12 @@ bool hookGame(std::uint64_t moduleAddress) {
     *frameProcPtr = frameHook;
     VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
 
+    SetUnhandledExceptionFilter(crashDumpHandler);
+
+    if (exe == "KINGDOM HEARTS II FINAL MIX.exe" && config->preventMapCrash()) {
+        AddVectoredExceptionHandler(1, mapCrashHandler);
+    }
+
     return true;
 }
 
@@ -326,24 +348,26 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     char modulePath[MAX_PATH];
     GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
 
-    std::string_view moduleName = modulePath;
+    std::string_view moduleNameView = modulePath;
     std::string_view gamesPath = modulePath;
-    std::size_t pos = moduleName.rfind("\\");
+    std::size_t pos = moduleNameView.rfind("\\");
     if (pos != std::string_view::npos) {
-        moduleName.remove_prefix(pos + 1);
+        moduleNameView.remove_prefix(pos + 1);
         gamesPath.remove_suffix(gamesPath.size() - pos);
     }
 
+    auto moduleName = std::string(moduleNameView);
+
     try {
-        const auto config = Config::load("LuaBackend.toml");
-        auto entry = config.gameInfo(std::string(moduleName));
+        config = Config::load("LuaBackend.toml");
+        auto entry = config->gameInfo(moduleName);
         if (entry) {
             gameInfo = *entry;
         } else {
             return 0;
         }
 
-        uint64_t moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
+        moduleAddress = (uint64_t)GetModuleHandleA(nullptr);
         uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
 
         vector<string> scriptPaths;
@@ -371,7 +395,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
 
             if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, scriptPaths) == 0) {
                 // TODO: Hook after game initialization is done.
-                while (!hookGame(moduleAddress)) {
+                while (!hookGame(moduleAddress, moduleName)) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(16));
                 }
             } else {
