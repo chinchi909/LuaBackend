@@ -17,11 +17,14 @@ loop effectively eliminating these issues. However, scripts that rely on new fea
 are not supported and it is recommended to use LuaFrontend concurrently with LuaBackend Hook to achieve this.
 
 ## Support
-Supports the PC Global versions of:
+Supports the PC Global and Japanese versions of:
 * Kingdom Hearts Final Mix
 * Kingdom Hearts Re: Chain of Memories
 * Kingdom Hearts II Final Mix
 * Kingdom Hearts Birth by Sleep Final Mix
+
+**Note**: Scripts seem to work fine on Japanese KH2 with the Global version offset already in the config file,
+though it is recognized as the Global version at the moment.
 
 Installation instructions are in [INSTALL.md](INSTALL.md).
 
