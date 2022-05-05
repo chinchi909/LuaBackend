@@ -1,0 +1,6 @@
+[submodule "external/include/wil"]
+	path = external/include/wil
+	url = https://github.com/microsoft/wil.git
+[submodule "external/subproject/ztd"]
+	path = external/subproject/ztd
+	url = https://github.com/soasis/text.git
