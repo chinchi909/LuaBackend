@@ -24,7 +24,7 @@ class LuaBackend {
     std::vector<std::unique_ptr<LuaScript>> loadedScripts;
     int frameLimit;
 
-    LuaBackend(std::vector<std::filesystem::path> ScriptPaths,
+    LuaBackend(const std::vector<std::filesystem::path>& ScriptPaths,
                std::uint64_t BaseInput);
 
     static int ExceptionHandle(
@@ -32,7 +32,7 @@ class LuaBackend {
         sol::optional<const std::exception&> thrownException,
         sol::string_view description);
 
-    void LoadScripts(std::vector<std::filesystem::path> ScriptPaths,
+    void LoadScripts(const std::vector<std::filesystem::path>& ScriptPaths,
                      std::uint64_t BaseInput);
     void SetFunctions(LuaState* _state);
 };

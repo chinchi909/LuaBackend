@@ -6,7 +6,7 @@
 
 namespace fs = std::filesystem;
 
-LuaBackend::LuaBackend(std::vector<fs::path> ScriptPaths,
+LuaBackend::LuaBackend(const std::vector<fs::path>& ScriptPaths,
                        std::uint64_t BaseInput) {
     frameLimit = 16;
     LoadScripts(ScriptPaths, BaseInput);
@@ -23,7 +23,7 @@ int LuaBackend::ExceptionHandle(
     return sol::stack::push(luaState, _ex.what());
 }
 
-void LuaBackend::LoadScripts(std::vector<fs::path> ScriptPaths,
+void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths,
                              std::uint64_t BaseInput) {
     loadedScripts.clear();
 
