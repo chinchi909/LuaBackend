@@ -23,7 +23,6 @@
 #include "game_info.h"
 #include "lua_exec.h"
 #include "wil_extra.h"
-#include "x86_64.h"
 
 // TODO: Remove after init fix.
 #include <thread>
