@@ -8,6 +8,8 @@
 #include <toml11/toml.hpp>
 #include <utility>
 
+namespace fs = std::filesystem;
+
 constexpr std::array<const char*, 4> keys{"kh1", "kh2", "bbs", "recom"};
 
 struct Entry {
@@ -24,7 +26,7 @@ static bool stringToInt(const std::string& str, unsigned long& ret, int base) {
     return ptr[0] == '\0' && ec == std::errc();
 }
 
-Config Config::load(std::string_view path) {
+Config Config::load(fs::path path) {
     Config config;
     auto data = toml::parse(path);
 

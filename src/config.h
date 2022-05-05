@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <string>
@@ -13,7 +14,7 @@ class Config {
     std::unordered_map<std::string, GameInfo> infos;
 
    public:
-    static Config load(std::string_view path);
+    static Config load(std::filesystem::path path);
     std::optional<std::reference_wrapper<const GameInfo>> gameInfo(
         const std::string& exe) const;
 };
