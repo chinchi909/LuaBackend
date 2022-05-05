@@ -66,10 +66,8 @@ void LuaBackend::LoadScripts(std::vector<fs::path> ScriptPaths,
             const auto _filePath = _path.path();
             const auto _filePathStr = _filePath.string();
 
-            if (_path.path().extension() == ".lua") {
-                std::u8string _luaName = _filePath.u8string();
-                _script->luaState["LUA_NAME"] =
-                    _luaName.substr(0, _luaName.size() - 4);
+            if (_filePath.extension() == ".lua") {
+                _script->luaState["LUA_NAME"] = _filePath.filename().string();
 
                 ConsoleLib::MessageOutput(
                     "Found script: \"" + _filePathStr + "\" Initializing...\n",
