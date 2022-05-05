@@ -164,6 +164,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
 
         if (!scriptPaths.empty()) {
             AllocConsole();
+            SetConsoleOutputCP(CP_UTF8);
             FILE* f;
             freopen_s(&f, "CONOUT$", "w", stdout);
 
