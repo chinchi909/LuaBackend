@@ -30,8 +30,8 @@ Sample file:
 ```
 [kh1]
 scripts = [{ path = "D:\\kh1-scripts", relative = false }]
-base = "3A0606"
-thread_struct = "22B7280"
+base = 0x3A0606
+thread_struct = 0x22B7280
 exe = "KINGDOM HEARTS FINAL MIX.exe"
 
 [kh2]
@@ -39,7 +39,7 @@ scripts = [
   { path = "scripts\\kh2", relative = true },
   { path = "C:\\Users\\johndoe\\bin\\KH\\PC\\openkh\\mod\\luascript", relative = false },
 ]
-base = "56454E"
-thread_struct = "89E9A0"
+base = 0x56454E
+thread_struct = 0x89E9A0
 exe = "KINGDOM HEARTS II FINAL MIX.exe"
 ```
