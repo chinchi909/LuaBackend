@@ -30,11 +30,6 @@ Config Config::load(std::string_view path) {
     Config config;
     auto data = toml::parse(path);
 
-    {
-        const auto kh2 = toml::find(data, "kh2");
-        config._preventMapCrash = toml::find<bool>(kh2, "prevent_map_crash");
-    }
-
     for (const auto& k : keys) {
         if (!data.contains(k)) continue;
 

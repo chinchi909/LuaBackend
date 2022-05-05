@@ -298,23 +298,6 @@ LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
-LONG WINAPI mapCrashHandler(PEXCEPTION_POINTERS exceptionPointers) {
-    PCONTEXT context = exceptionPointers->ContextRecord;
-
-    // 0x68 for global, 0x66 for jp
-    bool global = *reinterpret_cast<std::uint8_t*>(moduleAddress + 0x17D) == 0x68;
-
-    if ((global && context->Rip == moduleAddress + 0x1914E0) || (!global && context->Rip == moduleAddress + 0x191320)) {
-        context->Rip += 0x29;
-
-        ConsoleLib::MessageOutput("LuaBackend: Map crash detected and prevented. Stopped read to ", 2);
-        std::cout << "0x" << reinterpret_cast<void*>(context->Rbx) << "\n";
-        return EXCEPTION_CONTINUE_EXECUTION;
-    }
-
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
 bool hookGame(std::uint64_t moduleAddress, const std::string& exe) {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
@@ -338,10 +321,6 @@ bool hookGame(std::uint64_t moduleAddress, const std::string& exe) {
     VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
 
     SetUnhandledExceptionFilter(crashDumpHandler);
-
-    if (exe == "KINGDOM HEARTS II FINAL MIX.exe" && config->preventMapCrash()) {
-        AddVectoredExceptionHandler(1, mapCrashHandler);
-    }
 
     return true;
 }
