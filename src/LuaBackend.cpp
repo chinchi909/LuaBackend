@@ -63,19 +63,20 @@ void LuaBackend::LoadScripts(std::vector<fs::path> ScriptPaths,
                 _pathExe.c_str(), _pathExe.length(), CRC::CRC_32());
             _script->luaState["BASE_ADDR"] = BaseInput;
 
-            std::string _filePath{_path.path().string()};
+            const auto _filePath = _path.path();
+            const auto _filePathStr = _filePath.string();
 
             if (_path.path().extension() == ".lua") {
-                std::string _luaName =
-                    _filePath.substr(_filePath.find_last_of("\\") + 1);
+                std::u8string _luaName = _filePath.u8string();
                 _script->luaState["LUA_NAME"] =
                     _luaName.substr(0, _luaName.size() - 4);
 
                 ConsoleLib::MessageOutput(
-                    "Found script: \"" + _filePath + "\" Initializing...\n", 0);
+                    "Found script: \"" + _filePathStr + "\" Initializing...\n",
+                    0);
 
                 auto _result = _script->luaState.script_file(
-                    _filePath, &sol::script_pass_on_error);
+                    _filePathStr, &sol::script_pass_on_error);
 
                 _script->initFunction = _script->luaState["_OnInit"];
                 _script->frameFunction = _script->luaState["_OnFrame"];

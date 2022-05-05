@@ -8,7 +8,7 @@
 
 class ConsoleLib {
    public:
-    static void MessageOutput(std::string Text, int MessageType) {
+    static void MessageOutput(const std::string& Text, int MessageType) {
         HANDLE _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
         switch (MessageType) {

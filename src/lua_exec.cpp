@@ -21,12 +21,6 @@ LuaBackend* _backend = nullptr;
 std::chrono::high_resolution_clock::time_point _sClock;
 std::chrono::high_resolution_clock::time_point _msClock;
 
-void EnterWait() {
-    std::string _output;
-    std::getline(std::cin, _output);
-    return;
-}
-
 void ResetLUA() {
     std::printf("\n");
     ConsoleLib::MessageOutput("Reloading...\n\n", 0);
