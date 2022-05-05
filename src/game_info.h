@@ -5,7 +5,7 @@
 #include <string>
 
 struct ScriptPath {
-    std::string str;
+    std::u8string str;
     bool relative;
 };
 

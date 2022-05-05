@@ -1,23 +1,23 @@
 [kh1]
 scripts = [{ path = "scripts/kh1/", relative = true }]
-base = "3A0606"
-thread_struct = "22B7280"
+base = 0x3A0606
+thread_struct = 0x22B7280
 exe = "KINGDOM HEARTS FINAL MIX.exe"
 
 [kh2]
 scripts = [{ path = "scripts/kh2/", relative = true }]
-base = "56454E"
-thread_struct = "89E9A0"
+base = 0x56454E
+thread_struct = 0x89E9A0
 exe = "KINGDOM HEARTS II FINAL MIX.exe"
 
 [bbs]
 scripts = [{ path = "scripts/bbs/", relative = true }]
-base = "60E334"
-thread_struct = "110B5970"
+base = 0x60E334
+thread_struct = 0x110B5970
 exe = "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe"
 
 [recom]
 scripts = [{ path = "scripts/recom/", relative = true }]
-base = "4E4660"
-thread_struct = "BF7A80"
+base = 0x4E4660
+thread_struct = 0xBF7A80
 exe = "KINGDOM HEARTS Re_Chain of Memories.exe"

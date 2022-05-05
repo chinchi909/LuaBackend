@@ -126,9 +126,9 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     fs::path moduleDir = modulePath.parent_path();
     std::wstring moduleNameW = modulePath.filename();
 
-    std::string moduleName = ztd::text::transcode(
-        moduleNameW, ztd::text::wide_utf16, ztd::text::compat_utf8,
-        ztd::text::replacement_handler);
+    std::u8string moduleName =
+        ztd::text::transcode(moduleNameW, ztd::text::wide_utf16,
+                             ztd::text::utf8, ztd::text::replacement_handler);
 
     try {
         config = Config::load("LuaBackend.toml");

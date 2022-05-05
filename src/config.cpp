@@ -1,81 +1,91 @@
 #include "config.h"
 
+#include <toml++/toml.h>
+
 #include <array>
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
-#include <toml11/toml.hpp>
 #include <utility>
+#include <vector>
 
 namespace fs = std::filesystem;
 
 constexpr std::array<const char*, 4> keys{"kh1", "kh2", "bbs", "recom"};
 
 struct Entry {
-    std::string scripts;
+    std::u8string scripts;
     bool documents_relative;
     std::uintptr_t base;
     std::uintptr_t thread_struct;
-    std::string exe;
+    std::u8string exe;
 };
 
-static bool stringToInt(const std::string& str, unsigned long& ret, int base) {
-    auto [ptr, ec] =
-        std::from_chars(str.data(), str.data() + str.size(), ret, base);
-    return ptr[0] == '\0' && ec == std::errc();
-}
-
-Config Config::load(fs::path path) {
+Config Config::load(const fs::path& path) {
     Config config;
-    auto data = toml::parse(path);
+    auto data = toml::parse_file(path.u8string());
 
     for (const auto& k : keys) {
         if (!data.contains(k)) continue;
 
-        const auto entry = toml::find(data, k);
+        const auto& entry = data[k];
 
-        const auto scripts = toml::find(entry, "scripts");
-        const auto base = toml::find<std::string>(entry, "base");
+        const auto scripts = entry["scripts"].as_array();
+        const auto base = entry["base"].value<std::uintptr_t>();
         const auto threadStruct =
-            toml::find<std::string>(entry, "thread_struct");
-        const auto exe = toml::find<std::string>(entry, "exe");
+            entry["thread_struct"].value<std::uintptr_t>();
+        const auto exe = entry["exe"].value<std::u8string>();
+
+        if (!scripts) {
+            throw std::runtime_error{std::string{k} +
+                                     ": scripts failed to parse"};
+        }
+        if (!base) {
+            throw std::runtime_error{std::string{k} + ": base failed to parse"};
+        }
+        if (!threadStruct) {
+            throw std::runtime_error{std::string{k} +
+                                     ": threadStruct failed to parse"};
+        }
+        if (!exe) {
+            throw std::runtime_error{std::string{k} + ": exe failed to parse"};
+        }
 
         std::vector<ScriptPath> paths;
-        for (const auto& v : scripts.as_array()) {
-            const auto str = toml::find<std::string>(v, "path");
-            const auto relative = toml::find<bool>(v, "relative");
-            paths.push_back({std::move(str), relative});
-        }
+        for (std::size_t i = 0; i < scripts->size(); i++) {
+            const auto& v = *scripts->get_as<toml::table>(i);
+            const auto str = v["path"].value<std::u8string>();
+            const auto relative = v["relative"].value<bool>();
 
-        unsigned long threadStructVal;
-        unsigned long baseVal;
+            if (!str) {
+                throw std::runtime_error{std::string{k} + ": at index " +
+                                         std::to_string(i) +
+                                         ": script entry path failed to parse"};
+            }
+            if (!relative) {
+                throw std::runtime_error{
+                    std::string{k} + ": at index " + std::to_string(i) +
+                    ": script entry relative failed to parse"};
+            }
 
-        if (!stringToInt(threadStruct, threadStructVal, 16)) {
-            throw std::runtime_error{
-                "threadStruct failed to parse with value \"" + threadStruct +
-                "\""};
-        }
-
-        if (!stringToInt(base, baseVal, 16)) {
-            throw std::runtime_error{
-                "threadStruct failed to parse with value \"" + base + "\""};
+            paths.push_back({std::move(*str), *relative});
         }
 
         GameInfo info{
-            threadStructVal,
-            baseVal,
+            *threadStruct,
+            *base,
             paths,
         };
 
-        config.infos.insert({exe, info});
+        config.infos.insert({std::move(*exe), info});
     }
 
     return config;
 }
 
 std::optional<std::reference_wrapper<const GameInfo>> Config::gameInfo(
-    const std::string& exe) const {
+    const std::u8string& exe) const {
     if (auto info = infos.find(exe); info != infos.end()) {
         return std::cref(info->second);
     } else {

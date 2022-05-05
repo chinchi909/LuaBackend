@@ -4,7 +4,7 @@ project(LuaBackendHook)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(Git QUIET)
@@ -46,6 +46,6 @@ add_library(DBGHELP SHARED
 target_compile_options(DBGHELP PRIVATE /W4)
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
 add_dependencies(DBGHELP ztd::text)
-target_include_directories(DBGHELP PRIVATE external/subproject/lua544 external/subproject/wil/include external/include/discord)
+target_include_directories(DBGHELP PRIVATE external/subproject/lua544 external/subproject/wil/include external/include/tomlplusplus/include external/include/discord)
 target_link_directories(DBGHELP PUBLIC external/lib)
 target_link_libraries(DBGHELP PUBLIC lua54 ztd::text discord-rpc.lib)

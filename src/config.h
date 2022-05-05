@@ -11,10 +11,10 @@
 
 class Config {
    private:
-    std::unordered_map<std::string, GameInfo> infos;
+    std::unordered_map<std::u8string, GameInfo> infos;
 
    public:
-    static Config load(std::filesystem::path path);
+    static Config load(const std::filesystem::path& path);
     std::optional<std::reference_wrapper<const GameInfo>> gameInfo(
-        const std::string& exe) const;
+        const std::u8string& exe) const;
 };

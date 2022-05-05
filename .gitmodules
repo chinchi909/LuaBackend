@@ -4,3 +4,6 @@
 [submodule "external/subproject/ztd"]
 	path = external/subproject/ztd
 	url = https://github.com/soasis/text.git
+[submodule "external/include/tomlplusplus"]
+	path = external/include/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus.git
