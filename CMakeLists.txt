@@ -35,14 +35,35 @@ if(NOT MSVC)
     message(FATAL_ERROR "LuaBackendHook must be built using MSVC.")
 endif()
 
-add_library(DBGHELP SHARED
+set(HEADERS
+    src/config.h
+    src/game_info.h
+    src/lua_exec.h
+    src/wil_extra.h
+    src/ConsoleLib.h
+    src/DCInstance.h
+    src/LuaBackend.h
+    src/MemoryLib.h
+)
+
+set(SOURCE
     src/main_dll.cpp
-    src/DCInstance.cpp
-    src/LuaBackend.cpp
     src/config.cpp
     src/lua_exec.cpp
     src/ConsoleLib.cpp
+    src/DCInstance.cpp
+    src/LuaBackend.cpp
 )
+
+set(ALL_FILES ${HEADERS} ${SOURCE})
+
+add_custom_target(
+    clang-format
+    COMMAND clang-format -i -style=file ${ALL_FILES}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_library(DBGHELP SHARED ${SOURCE})
 
 target_compile_options(DBGHELP PRIVATE /W4)
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
