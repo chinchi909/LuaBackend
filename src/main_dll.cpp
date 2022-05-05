@@ -105,7 +105,7 @@ extern "C"
         ShowWindow(GetConsoleWindow(), SW_HIDE);
 
         cout << "======================================" << "\n";
-        cout << "======= LuaBackendHook | v1.5.0 ======" << "\n";
+        cout << "======= LuaBackendHook | v1.5.1 ======" << "\n";
         cout << "====== Copyright 2021 - TopazTK ======" << "\n";
         cout << "======================================" << "\n";
         cout << "=== Compatible with LuaEngine v5.0 ===" << "\n";
@@ -289,8 +289,7 @@ LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
         mdei.ExceptionPointers = exceptionPointers;
         mdei.ClientPointers = TRUE;
 
-        (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(),
-            file, MiniDumpNormal, (exceptionPointers != 0) ? &mdei : 0, 0, 0);
+        (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &mdei, 0, 0);
 
         CloseHandle(file);
     }

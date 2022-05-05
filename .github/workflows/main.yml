@@ -24,8 +24,7 @@ jobs:
       run: |
         mkdir artifacts
         cp build/Release/DBGHELP.dll artifacts
-        cp dll/discord-rpc.dll artifacts
-        cp dll/Lua.dll artifacts
+        cp build/external/subproject/lua544/Release/lua54.dll artifacts
         cp config/LuaBackend.toml artifacts
     - name: Upload DBGHELP
       uses: actions/upload-artifact@v2
