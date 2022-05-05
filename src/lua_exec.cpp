@@ -83,7 +83,7 @@ int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
     MemoryLib::ExternProcess(ProcessID, ProcessH, TargetAddress);
 
     _backend =
-        new LuaBackend(ScriptPaths, MemoryLib::ExecAddress + TargetAddress);
+        new LuaBackend(_scriptPaths, MemoryLib::ExecAddress + TargetAddress);
     _backend->frameLimit = 16;
 
     if (_backend->loadedScripts.size() == 0) {
