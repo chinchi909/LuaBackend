@@ -1,11 +1,11 @@
 /**
     @file CRC.h
     @author Daniel Bahr
-    @version 1.1.0.0
+    @version 1.2.0.0
     @copyright
     @parblock
         CRC++
-        Copyright (c) 2021, Daniel Bahr
+        Copyright (c) 2022, Daniel Bahr
         All rights reserved.
 
         Redistribution and use in source and binary forms, with or without
@@ -247,6 +247,7 @@ public:
     static const Parameters<crcpp_uint16, 16> & CRC_16_ARC();
     static const Parameters<crcpp_uint16, 16> & CRC_16_BUYPASS();
     static const Parameters<crcpp_uint16, 16> & CRC_16_CCITTFALSE();
+    static const Parameters<crcpp_uint16, 16> & CRC_16_MCRF4XX();
 #ifdef CRCPP_INCLUDE_ESOTERIC_CRC_DEFINITIONS
     static const Parameters<crcpp_uint16, 16> & CRC_16_CDMA2000();
     static const Parameters<crcpp_uint16, 16> & CRC_16_CMS();
@@ -886,7 +887,19 @@ inline CRCType CRC::CalculateRemainder(const void * data, crcpp_size size, const
     if (lookupTable.GetParameters().reflectInput)
     {
         while (size--)
+        {
+#if defined(WIN32) || defined(_WIN32) || defined(WINCE)
+    // Disable warning about data loss when doing (remainder >> CHAR_BIT) when
+    // remainder is one byte long. The algorithm is still correct in this case,
+    // though it's possible that one additional machine instruction will be executed.
+#   pragma warning (push)
+#   pragma warning (disable : 4333)
+#endif
             remainder = static_cast<CRCType>((remainder >> CHAR_BIT) ^ lookupTable[static_cast<unsigned char>(remainder ^ *current++)]);
+#if defined(WIN32) || defined(_WIN32) || defined(WINCE)
+#   pragma warning (pop)
+#endif
+        }
     }
     else if (CRCWidth >= CHAR_BIT)
     {
@@ -1490,6 +1503,24 @@ inline const CRC::Parameters<crcpp_uint16, 16> & CRC::CRC_16_BUYPASS()
 inline const CRC::Parameters<crcpp_uint16, 16> & CRC::CRC_16_CCITTFALSE()
 {
     static const Parameters<crcpp_uint16, 16> parameters = { 0x1021, 0xFFFF, 0x0000, false, false };
+    return parameters;
+}
+
+/**
+    @brief Returns a set of parameters for CRC-16 MCRF4XX.
+    @note The parameters are static and are delayed-constructed to reduce memory footprint.
+    @note CRC-16 MCRF4XX has the following parameters and check value:
+        - polynomial     = 0x1021
+        - initial value  = 0xFFFF
+        - final XOR      = 0x0000
+        - reflect input  = true
+        - reflect output = true
+        - check value    = 0x6F91
+    @return CRC-16 MCRF4XX parameters
+*/
+inline const CRC::Parameters<crcpp_uint16, 16> & CRC::CRC_16_MCRF4XX()
+{
+    static const Parameters<crcpp_uint16, 16> parameters = { 0x1021, 0xFFFF, 0x0000, true, true};
     return parameters;
 }
 

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-#include <sol2/sol.hpp>
+#include <sol/sol.hpp>
 #include <any>
 
 class ConsoleLib

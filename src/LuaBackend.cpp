@@ -1,5 +1,5 @@
 #include "LuaBackend.h"
-#include <crcpp/CRC32.h>
+#include <crcpp/CRC.h>
 
 LuaBackend::LuaBackend(vector<string> ScriptPaths, uint64_t BaseInput)
 {

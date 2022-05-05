@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <filesystem>
-#include <sol2/sol.hpp>
+#include <sol/sol.hpp>
 
 #include "MemoryLib.h"
 #include "ConsoleLib.h"
