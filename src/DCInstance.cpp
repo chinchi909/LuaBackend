@@ -3,7 +3,7 @@
 void DCInstance::InitializeRPC(const char* applicationID) {
     Discord_Initialize(applicationID, NULL, 1, NULL);
 
-    memset(&DCInstance::Presence, 0, sizeof(DCInstance::Presence));
+    std::memset(&DCInstance::Presence, 0, sizeof(DCInstance::Presence));
 
     auto _currTime = std::chrono::system_clock::now().time_since_epoch();
     auto _secondCast =

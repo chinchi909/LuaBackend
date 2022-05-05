@@ -11,10 +11,10 @@ class DCInstance {
    public:
     static inline DiscordRichPresence Presence;
 
-    static void InitializeRPC(const char*);
+    static void InitializeRPC(const char* applicationID);
 
-    static void UpdateDetails(const char*);
-    static void UpdateState(const char*);
-    static void UpdateLImage(const char*, const char*);
-    static void UpdateSImage(const char*, const char*);
+    static void UpdateDetails(const char* input);
+    static void UpdateState(const char* input);
+    static void UpdateLImage(const char* key, const char* text);
+    static void UpdateSImage(const char* key, const char* text);
 };

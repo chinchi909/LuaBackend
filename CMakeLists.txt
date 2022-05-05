@@ -41,6 +41,7 @@ add_library(DBGHELP SHARED
     src/LuaBackend.cpp
     src/config.cpp
     src/lua_exec.cpp
+    src/ConsoleLib.cpp
 )
 
 target_compile_options(DBGHELP PRIVATE /W4)

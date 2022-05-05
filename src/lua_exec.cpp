@@ -16,10 +16,10 @@ static std::vector<fs::path> _scriptPaths;
 static bool _showConsole = false;
 static bool _requestedReset = false;
 
-LuaBackend* _backend = nullptr;
+static LuaBackend* _backend = nullptr;
 
-std::chrono::high_resolution_clock::time_point _sClock;
-std::chrono::high_resolution_clock::time_point _msClock;
+static std::chrono::high_resolution_clock::time_point _sClock;
+static std::chrono::high_resolution_clock::time_point _msClock;
 
 void ResetLUA() {
     std::printf("\n");
@@ -33,7 +33,7 @@ void ResetLUA() {
     ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n",
                               0);
 
-    for (auto _script : _backend->loadedScripts)
+    for (auto& _script : _backend->loadedScripts)
         if (_script->initFunction) {
             auto _result = _script->initFunction();
 
@@ -89,7 +89,7 @@ int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
     ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n",
                               0);
 
-    for (auto _script : _backend->loadedScripts)
+    for (auto& _script : _backend->loadedScripts)
         if (_script->initFunction) {
             auto _result = _script->initFunction();
 
@@ -164,7 +164,7 @@ void ExecuteLUA() {
         }
 
         for (int i = 0; i < _backend->loadedScripts.size(); i++) {
-            auto _script = _backend->loadedScripts[i];
+            auto& _script = _backend->loadedScripts[i];
 
             if (_script->frameFunction) {
                 auto _result = _script->frameFunction();

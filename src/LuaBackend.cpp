@@ -2,13 +2,25 @@
 
 #include <crcpp/CRC.h>
 
+#include <utility>
+
 namespace fs = std::filesystem;
 
 LuaBackend::LuaBackend(std::vector<fs::path> ScriptPaths,
                        std::uint64_t BaseInput) {
     frameLimit = 16;
-    loadedScripts = std::vector<LuaScript*>();
     LoadScripts(ScriptPaths, BaseInput);
+}
+
+int LuaBackend::ExceptionHandle(
+    lua_State* luaState, sol::optional<const std::exception&> thrownException,
+    sol::string_view description) {
+    (void)description;
+
+    const std::exception _ex = *thrownException;
+    ConsoleLib::MessageOutput(_ex.what() + '\n', 3);
+
+    return sol::stack::push(luaState, _ex.what());
 }
 
 void LuaBackend::LoadScripts(std::vector<fs::path> ScriptPaths,
@@ -21,7 +33,7 @@ void LuaBackend::LoadScripts(std::vector<fs::path> ScriptPaths,
         }
 
         for (auto _path : fs::directory_iterator(scriptsDir)) {
-            LuaScript* _script = new LuaScript();
+            auto _script = std::make_unique<LuaScript>();
 
             // clang-format off
             _script->luaState.open_libraries(
@@ -109,10 +121,8 @@ void LuaBackend::LoadScripts(std::vector<fs::path> ScriptPaths,
                     ConsoleLib::MessageOutput(
                         "Initialization of this script was successful!\n\n", 1);
 
-                    loadedScripts.push_back(_script);
-                }
-
-                else {
+                    loadedScripts.push_back(std::move(_script));
+                } else {
                     sol::error err = _result;
                     ConsoleLib::MessageOutput(err.what() + '\n', 3);
                     ConsoleLib::MessageOutput(
