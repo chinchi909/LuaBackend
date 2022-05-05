@@ -22,7 +22,7 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
     endif()
 endif()
 
-if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/ztd/CMakeLists.txt" OR NOT EXISTS "${PROJECT_SOURCE_DIR}/external/include/wil/CMakeLists.txt")
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/ztd/CMakeLists.txt" OR NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/wil/CMakeLists.txt")
     message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
 endif()
 
@@ -40,11 +40,12 @@ add_library(DBGHELP SHARED
     src/DCInstance.cpp
     src/LuaBackend.cpp
     src/config.cpp
+    src/lua_exec.cpp
 )
 
 target_compile_options(DBGHELP PRIVATE /W4)
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
 add_dependencies(DBGHELP ztd::text)
-target_include_directories(DBGHELP PRIVATE external/subproject/lua544 external/include/discord)
+target_include_directories(DBGHELP PRIVATE external/subproject/lua544 external/subproject/wil/include external/include/discord)
 target_link_directories(DBGHELP PUBLIC external/lib)
 target_link_libraries(DBGHELP PUBLIC lua54 ztd::text discord-rpc.lib)

@@ -1,11 +1,12 @@
 #include "config.h"
 
 #include <array>
+#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
-#include <utility>
 #include <toml11/toml.hpp>
+#include <utility>
 
 constexpr std::array<const char*, 4> keys{"kh1", "kh2", "bbs", "recom"};
 
@@ -17,13 +18,10 @@ struct Entry {
     std::string exe;
 };
 
-static unsigned long stringToInt(const std::string& str, int base) {
-    auto num = std::strtoul(str.c_str(), nullptr, base);
-    if (num == 0) {
-        throw std::runtime_error{"string to int conversion failed"};
-    } else {
-        return num;
-    }
+static bool stringToInt(const std::string& str, unsigned long& ret, int base) {
+    auto [ptr, ec] =
+        std::from_chars(str.data(), str.data() + str.size(), ret, base);
+    return ptr[0] == '\0' && ec == std::errc();
 }
 
 Config Config::load(std::string_view path) {
@@ -37,7 +35,8 @@ Config Config::load(std::string_view path) {
 
         const auto scripts = toml::find(entry, "scripts");
         const auto base = toml::find<std::string>(entry, "base");
-        const auto threadStruct = toml::find<std::string>(entry, "thread_struct");
+        const auto threadStruct =
+            toml::find<std::string>(entry, "thread_struct");
         const auto exe = toml::find<std::string>(entry, "exe");
 
         std::vector<ScriptPath> paths;
@@ -47,9 +46,23 @@ Config Config::load(std::string_view path) {
             paths.push_back({std::move(str), relative});
         }
 
+        unsigned long threadStructVal;
+        unsigned long baseVal;
+
+        if (!stringToInt(threadStruct, threadStructVal, 16)) {
+            throw std::runtime_error{
+                "threadStruct failed to parse with value \"" + threadStruct +
+                "\""};
+        }
+
+        if (!stringToInt(base, baseVal, 16)) {
+            throw std::runtime_error{
+                "threadStruct failed to parse with value \"" + base + "\""};
+        }
+
         GameInfo info{
-            stringToInt(threadStruct, 16),
-            stringToInt(base, 16),
+            threadStructVal,
+            baseVal,
             paths,
         };
 
@@ -59,7 +72,8 @@ Config Config::load(std::string_view path) {
     return config;
 }
 
-std::optional<std::reference_wrapper<const GameInfo>> Config::gameInfo(const std::string& exe) const {
+std::optional<std::reference_wrapper<const GameInfo>> Config::gameInfo(
+    const std::string& exe) const {
     if (auto info = infos.find(exe); info != infos.end()) {
         return std::cref(info->second);
     } else {

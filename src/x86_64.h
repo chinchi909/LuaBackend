@@ -1,25 +1,17 @@
 #pragma once
 #include <cstdint>
 
-#define JUMP_TO(addr) 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, \
-	(uint8_t)(addr >> 0), \
-	(uint8_t)(addr >> 8), \
-	(uint8_t)(addr >> 16), \
-	(uint8_t)(addr >> 24), \
-	(uint8_t)(addr >> 32), \
-	(uint8_t)(addr >> 40), \
-	(uint8_t)(addr >> 48), \
-	(uint8_t)(addr >> 56)
+#define JUMP_TO(addr)                                                        \
+    0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, (uint8_t)(addr >> 0),                \
+        (uint8_t)(addr >> 8), (uint8_t)(addr >> 16), (uint8_t)(addr >> 24),  \
+        (uint8_t)(addr >> 32), (uint8_t)(addr >> 40), (uint8_t)(addr >> 48), \
+        (uint8_t)(addr >> 56)
 
-#define CALL(addr) 0xFF, 0x15, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x08, \
-	(uint8_t)(addr >> 0), \
-	(uint8_t)(addr >> 8), \
-	(uint8_t)(addr >> 16), \
-	(uint8_t)(addr >> 24), \
-	(uint8_t)(addr >> 32), \
-	(uint8_t)(addr >> 40), \
-	(uint8_t)(addr >> 48), \
-	(uint8_t)(addr >> 56)
+#define CALL(addr)                                                           \
+    0xFF, 0x15, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x08, (uint8_t)(addr >> 0),    \
+        (uint8_t)(addr >> 8), (uint8_t)(addr >> 16), (uint8_t)(addr >> 24),  \
+        (uint8_t)(addr >> 32), (uint8_t)(addr >> 40), (uint8_t)(addr >> 48), \
+        (uint8_t)(addr >> 56)
 
 constexpr uint8_t PUSHF_1 = 0x66;
 constexpr uint8_t PUSHF_2 = 0x9C;
