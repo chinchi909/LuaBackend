@@ -40,7 +40,8 @@ Config Config::load(const fs::path& path) {
             throw std::runtime_error{std::string{k} + ": exe failed to parse"};
         }
         if (!game_docs) {
-            throw std::runtime_error{std::string{k} + ": game_docs failed to parse"};
+            throw std::runtime_error{std::string{k} +
+                                     ": game_docs failed to parse"};
         }
 
         std::vector<ScriptPath> paths;
@@ -63,12 +64,11 @@ Config Config::load(const fs::path& path) {
             paths.emplace_back(*str, *relative);
         }
 
-        config.infos.emplace(*exe, GameInfo{
-            .pointerStructOffset = *threadStruct,
-            .baseAddress = *base,
-            .scriptPaths = std::move(paths),
-            .gameDocsPathStr = *game_docs
-        });
+        config.infos.emplace(*exe,
+                             GameInfo{.pointerStructOffset = *threadStruct,
+                                      .baseAddress = *base,
+                                      .scriptPaths = std::move(paths),
+                                      .gameDocsPathStr = *game_docs});
     }
 
     return config;

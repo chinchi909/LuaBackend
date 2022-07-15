@@ -143,8 +143,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
 
         fs::path gameDocsRoot = [&]() {
             PWSTR docsRootStr;
-            SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr,
-                                    &docsRootStr);
+            SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &docsRootStr);
 
             return fs::path{docsRootStr} / gameInfo->gameDocsPathStr;
         }();
