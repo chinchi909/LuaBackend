@@ -58,7 +58,7 @@ int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
 
     std::cout << "======================================"
               << "\n";
-    std::cout << "======= LuaBackendHook | v1.6.0 ======"
+    std::cout << "======= LuaBackendHook | v1.7.0 ======"
               << "\n";
     std::cout << "====== Copyright 2021 - TopazTK ======"
               << "\n";

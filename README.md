@@ -22,6 +22,7 @@ Supports the PC Global and Japanese versions of:
 * Kingdom Hearts Re: Chain of Memories
 * Kingdom Hearts II Final Mix
 * Kingdom Hearts Birth by Sleep Final Mix
+* Kingdom Hearts Dream Drop Distance HD
 
 **Note**: Scripts seem to work fine on Japanese KH2 with the Global version offset already in the config file,
 though it is recognized as the Global version at the moment.
