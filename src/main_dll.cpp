@@ -141,16 +141,18 @@ DWORD WINAPI entry(LPVOID lpParameter) {
         moduleAddress = (std::uint64_t)GetModuleHandleW(nullptr);
         std::uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
 
+        fs::path gameDocsRoot = [&]() {
+            PWSTR docsRootStr;
+            SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr,
+                                    &docsRootStr);
+
+            return fs::path{docsRootStr} / gameInfo->gameDocsPathStr;
+        }();
+
         std::vector<fs::path> scriptPaths;
         for (const auto& path : gameInfo->scriptPaths) {
             if (path.relative) {
-                PWSTR khDocsRootStr;
-                SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr,
-                                     &khDocsRootStr);
-                fs::path khDocsRoot = fs::path{khDocsRootStr} /
-                                      L"KINGDOM HEARTS HD 1.5+2.5 ReMIX";
-
-                fs::path gameScriptsPath = fs::path{khDocsRoot} / path.str;
+                fs::path gameScriptsPath = gameDocsRoot / path.str;
                 if (fs::exists(gameScriptsPath)) {
                     scriptPaths.push_back(gameScriptsPath);
                 }

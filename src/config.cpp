@@ -2,7 +2,6 @@
 
 #include <toml++/toml.h>
 
-#include <array>
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
@@ -12,23 +11,11 @@
 
 namespace fs = std::filesystem;
 
-constexpr std::array<const char*, 4> keys{"kh1", "kh2", "bbs", "recom"};
-
-struct Entry {
-    std::u8string scripts;
-    bool documents_relative;
-    std::uintptr_t base;
-    std::uintptr_t thread_struct;
-    std::u8string exe;
-};
-
 Config Config::load(const fs::path& path) {
     Config config;
     auto data = toml::parse_file(path.u8string());
 
-    for (const auto& k : keys) {
-        if (!data.contains(k)) continue;
-
+    for (const auto& [k, _] : data) {
         const auto& entry = data[k];
 
         const auto scripts = entry["scripts"].as_array();
@@ -36,6 +23,7 @@ Config Config::load(const fs::path& path) {
         const auto threadStruct =
             entry["thread_struct"].value<std::uintptr_t>();
         const auto exe = entry["exe"].value<std::u8string>();
+        const auto game_docs = entry["game_docs"].value<std::u8string>();
 
         if (!scripts) {
             throw std::runtime_error{std::string{k} +
@@ -50,6 +38,9 @@ Config Config::load(const fs::path& path) {
         }
         if (!exe) {
             throw std::runtime_error{std::string{k} + ": exe failed to parse"};
+        }
+        if (!game_docs) {
+            throw std::runtime_error{std::string{k} + ": game_docs failed to parse"};
         }
 
         std::vector<ScriptPath> paths;
@@ -69,16 +60,15 @@ Config Config::load(const fs::path& path) {
                     ": script entry relative failed to parse"};
             }
 
-            paths.push_back({std::move(*str), *relative});
+            paths.emplace_back(*str, *relative);
         }
 
-        GameInfo info{
-            *threadStruct,
-            *base,
-            paths,
-        };
-
-        config.infos.insert({std::move(*exe), info});
+        config.infos.emplace(*exe, GameInfo{
+            .pointerStructOffset = *threadStruct,
+            .baseAddress = *base,
+            .scriptPaths = std::move(paths),
+            .gameDocsPathStr = *game_docs
+        });
     }
 
     return config;
