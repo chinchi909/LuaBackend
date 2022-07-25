@@ -52,20 +52,13 @@ void ResetLUA() {
 int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress, std::vector<fs::path> ScriptPaths) {
     ShowWindow(GetConsoleWindow(), SW_HIDE);
 
-    std::cout << "======================================"
-              << "\n";
-    std::cout << "======= LuaBackendHook | v1.7.0 ======"
-              << "\n";
-    std::cout << "====== Copyright 2021 - TopazTK ======"
-              << "\n";
-    std::cout << "======================================"
-              << "\n";
-    std::cout << "=== Compatible with LuaEngine v5.0 ==="
-              << "\n";
-    std::cout << "========== Embedded Version =========="
-              << "\n";
-    std::cout << "======================================"
-              << "\n\n";
+    std::cout << "======================================\n";
+    std::cout << "======= LuaBackendHook | v1.7.0 ======\n";
+    std::cout << "====== Copyright 2021 - TopazTK ======\n";
+    std::cout << "======================================\n";
+    std::cout << "=== Compatible with LuaEngine v5.0 ===\n";
+    std::cout << "========== Embedded Version ==========\n";
+    std::cout << "======================================\n\n";
 
     ConsoleLib::MessageOutput("Initializing LuaEngine v5.0...\n\n", 0);
     _scriptPaths = std::move(ScriptPaths);

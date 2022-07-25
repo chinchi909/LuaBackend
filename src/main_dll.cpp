@@ -1,9 +1,12 @@
+#include <array>
 #include <chrono>
+#include <concepts>
 #include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -43,13 +46,15 @@ std::optional<GameInfo> gameInfo;
 
 std::uint64_t moduleAddress = 0;
 
-std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const std::vector<std::uintptr_t>& offsets) {
+template <std::bidirectional_iterator It>
+requires std::same_as<std::iter_value_t<It>, std::uintptr_t> std::optional<std::uintptr_t> followPointerChain(
+    std::uintptr_t start, It offsets_begin, It offsets_end) {
     std::uintptr_t current = start;
 
-    for (auto it = offsets.cbegin(); it != offsets.cend(); ++it) {
+    for (auto it = offsets_begin; it != offsets_end; ++it) {
         if (current == 0) return {};
 
-        if (it != offsets.cend() - 1) {
+        if (it != offsets_end - 1) {
             current = *reinterpret_cast<std::uintptr_t*>(current + *it);
         } else {
             current += *it;
@@ -86,12 +91,12 @@ LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
 bool hookGame() {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
-    const std::vector<std::uintptr_t> frameProcOffsets{0x3E8, 0x0, 0x20};
-    const std::vector<std::uintptr_t> graphicsProcOffsets{0x2D8};
+    constexpr auto frameProcOffsets = std::to_array<std::uintptr_t>({0x3E8, 0x0, 0x20});
+    constexpr auto graphicsProcOffsets = std::to_array<std::uintptr_t>({0x2D8});
 
     std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
-    if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets)) {
+    if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets.begin(), frameProcOffsets.end())) {
         frameProcPtr = reinterpret_cast<GameFrameProc*>(*ptr);
     } else {
         return false;
