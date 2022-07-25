@@ -8,7 +8,7 @@
 #include <chrono>
 
 class DCInstance {
-   public:
+public:
     static inline DiscordRichPresence Presence;
 
     static void InitializeRPC(const char* applicationID);

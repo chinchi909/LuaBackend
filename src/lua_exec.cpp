@@ -24,14 +24,11 @@ static std::chrono::high_resolution_clock::time_point _msClock;
 void ResetLUA() {
     std::printf("\n");
     ConsoleLib::MessageOutput("Reloading...\n\n", 0);
-    _backend = new LuaBackend(_scriptPaths,
-                              MemoryLib::ExecAddress + MemoryLib::BaseAddress);
+    _backend = new LuaBackend(_scriptPaths, MemoryLib::ExecAddress + MemoryLib::BaseAddress);
 
-    if (_backend->loadedScripts.size() == 0)
-        ConsoleLib::MessageOutput("No scripts found! Reload halted!\n\n", 3);
+    if (_backend->loadedScripts.size() == 0) ConsoleLib::MessageOutput("No scripts found! Reload halted!\n\n", 3);
 
-    ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n",
-                              0);
+    ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);
 
     for (auto& _script : _backend->loadedScripts)
         if (_script->initFunction) {
@@ -52,8 +49,7 @@ void ResetLUA() {
     _requestedReset = false;
 }
 
-int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
-             std::vector<fs::path> ScriptPaths) {
+int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress, std::vector<fs::path> ScriptPaths) {
     ShowWindow(GetConsoleWindow(), SW_HIDE);
 
     std::cout << "======================================"
@@ -76,18 +72,15 @@ int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
 
     MemoryLib::ExternProcess(ProcessID, ProcessH, TargetAddress);
 
-    _backend =
-        new LuaBackend(_scriptPaths, MemoryLib::ExecAddress + TargetAddress);
+    _backend = new LuaBackend(_scriptPaths, MemoryLib::ExecAddress + TargetAddress);
     _backend->frameLimit = 16;
 
     if (_backend->loadedScripts.size() == 0) {
-        ConsoleLib::MessageOutput(
-            "No scripts were found! Initialization halted!\n\n", 3);
+        ConsoleLib::MessageOutput("No scripts were found! Initialization halted!\n\n", 3);
         return -1;
     }
 
-    ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n",
-                              0);
+    ConsoleLib::MessageOutput("Executing initialization event handlers...\n\n", 0);
 
     for (auto& _script : _backend->loadedScripts)
         if (_script->initFunction) {
@@ -116,9 +109,7 @@ int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
 void ExecuteLUA() {
     if (_requestedReset == false) {
         auto _currTime = std::chrono::high_resolution_clock::now();
-        auto _sTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          _currTime - _sClock)
-                          .count();
+        auto _sTime = std::chrono::duration_cast<std::chrono::milliseconds>(_currTime - _sClock).count();
 
         if (GetKeyState(VK_F3) & 0x8000 && _funcThreeState) {
             switch (_backend->frameLimit) {
@@ -174,8 +165,7 @@ void ExecuteLUA() {
                     ConsoleLib::MessageOutput(_err.what(), 3);
                     std::printf("\n\n");
 
-                    _backend->loadedScripts.erase(
-                        _backend->loadedScripts.begin() + i);
+                    _backend->loadedScripts.erase(_backend->loadedScripts.begin() + i);
                 }
             }
         }

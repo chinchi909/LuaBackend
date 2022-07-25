@@ -10,11 +10,10 @@
 #include "game_info.h"
 
 class Config {
-   private:
+private:
     std::unordered_map<std::u8string, GameInfo> infos;
 
-   public:
+public:
     static Config load(const std::filesystem::path& path);
-    std::optional<std::reference_wrapper<const GameInfo>> gameInfo(
-        const std::u8string& exe) const;
+    std::optional<std::reference_wrapper<const GameInfo>> gameInfo(const std::u8string& exe) const;
 };

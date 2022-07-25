@@ -43,8 +43,7 @@ std::optional<GameInfo> gameInfo;
 
 std::uint64_t moduleAddress = 0;
 
-std::optional<std::uintptr_t> followPointerChain(
-    std::uintptr_t start, const std::vector<std::uintptr_t>& offsets) {
+std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const std::vector<std::uintptr_t>& offsets) {
     std::uintptr_t current = start;
 
     for (auto it = offsets.cbegin(); it != offsets.cend(); ++it) {
@@ -66,8 +65,8 @@ std::uint64_t __cdecl frameHook(void* rcx) {
 }
 
 LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
-    HANDLE file = CreateFileW(L"CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0,
-                              NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE file = CreateFileW(L"CrashDump.dmp", GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (file != INVALID_HANDLE_VALUE) {
         MINIDUMP_EXCEPTION_INFORMATION mdei;
@@ -76,8 +75,7 @@ LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
         mdei.ExceptionPointers = exceptionPointers;
         mdei.ClientPointers = TRUE;
 
-        (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(), file,
-                         MiniDumpNormal, &mdei, 0, 0);
+        (*writeDumpProc)(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &mdei, 0, 0);
 
         CloseHandle(file);
     }
@@ -91,8 +89,7 @@ bool hookGame() {
     const std::vector<std::uintptr_t> frameProcOffsets{0x3E8, 0x0, 0x20};
     const std::vector<std::uintptr_t> graphicsProcOffsets{0x2D8};
 
-    std::uintptr_t pointerStruct =
-        moduleAddress + gameInfo->pointerStructOffset;
+    std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
     if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets)) {
         frameProcPtr = reinterpret_cast<GameFrameProc*>(*ptr);
@@ -103,12 +100,10 @@ bool hookGame() {
     if (*frameProcPtr == nullptr) return false;
 
     DWORD originalProt = 0;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE,
-                   &originalProt);
+    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
     frameProc = *frameProcPtr;
     *frameProcPtr = frameHook;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt,
-                   &originalProt);
+    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
 
     SetUnhandledExceptionFilter(crashDumpHandler);
 
@@ -126,8 +121,7 @@ DWORD WINAPI entry(LPVOID lpParameter) {
     std::wstring moduleNameW = modulePath.filename();
 
     std::u8string moduleName =
-        ztd::text::transcode(moduleNameW, ztd::text::wide_utf16,
-                             ztd::text::utf8, ztd::text::replacement_handler);
+        ztd::text::transcode(moduleNameW, ztd::text::wide_utf16, ztd::text::utf8, ztd::text::replacement_handler);
 
     try {
         config = Config::load("LuaBackend.toml");
@@ -169,25 +163,20 @@ DWORD WINAPI entry(LPVOID lpParameter) {
             FILE* f;
             freopen_s(&f, "CONOUT$", "w", stdout);
 
-            if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(),
-                         baseAddress, std::move(scriptPaths)) == 0) {
+            if (EntryLUA(GetCurrentProcessId(), GetCurrentProcess(), baseAddress, std::move(scriptPaths)) == 0) {
                 // TODO: Hook after game initialization is done.
                 while (!hookGame()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(16));
                 }
             } else {
-                std::cout << "Failed to initialize internal LuaBackend!"
-                          << std::endl;
+                std::cout << "Failed to initialize internal LuaBackend!" << std::endl;
             }
         }
     } catch (std::exception& e) {
-        std::string msg = "entry exception: " + std::string(e.what()) +
-                          "\n\nScripts failed to load.";
-        std::wstring wmsg = ztd::text::transcode(
-            msg, ztd::text::compat_utf8, ztd::text::wide_utf16,
-            ztd::text::replacement_handler);
-        MessageBoxW(NULL, wmsg.c_str(), L"LuaBackendHook",
-                    MB_ICONERROR | MB_OK);
+        std::string msg = "entry exception: " + std::string(e.what()) + "\n\nScripts failed to load.";
+        std::wstring wmsg =
+            ztd::text::transcode(msg, ztd::text::compat_utf8, ztd::text::wide_utf16, ztd::text::replacement_handler);
+        MessageBoxW(NULL, wmsg.c_str(), L"LuaBackendHook", MB_ICONERROR | MB_OK);
     }
 
     return 0;
@@ -205,11 +194,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
             fs::path dllPath = fs::path{systemDirectoryStr} / L"DBGHELP.dll";
 
             dbgHelp = LoadLibraryW(dllPath.wstring().c_str());
-            writeDumpProc = (MiniDumpWriteDumpProc)GetProcAddress(
-                dbgHelp, "MiniDumpWriteDump");
+            writeDumpProc = (MiniDumpWriteDumpProc)GetProcAddress(dbgHelp, "MiniDumpWriteDump");
 
-            if (CreateThread(nullptr, 0, entry, nullptr, 0, nullptr) ==
-                nullptr) {
+            if (CreateThread(nullptr, 0, entry, nullptr, 0, nullptr) == nullptr) {
                 return FALSE;
             }
 
@@ -227,11 +214,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 }
 
 extern "C" __declspec(dllexport) BOOL WINAPI
-    MiniDumpWriteDump(HANDLE hProcess, DWORD ProcessId, HANDLE hFile,
-                      MINIDUMP_TYPE DumpType,
-                      PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-                      PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+    MiniDumpWriteDump(HANDLE hProcess, DWORD ProcessId, HANDLE hFile, MINIDUMP_TYPE DumpType,
+                      PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam, PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
                       PMINIDUMP_CALLBACK_INFORMATION CallbackParam) {
-    return writeDumpProc(hProcess, ProcessId, hFile, DumpType, ExceptionParam,
-                         UserStreamParam, CallbackParam);
+    return writeDumpProc(hProcess, ProcessId, hFile, DumpType, ExceptionParam, UserStreamParam, CallbackParam);
 }

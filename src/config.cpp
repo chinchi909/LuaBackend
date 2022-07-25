@@ -20,28 +20,24 @@ Config Config::load(const fs::path& path) {
 
         const auto scripts = entry["scripts"].as_array();
         const auto base = entry["base"].value<std::uintptr_t>();
-        const auto threadStruct =
-            entry["thread_struct"].value<std::uintptr_t>();
+        const auto threadStruct = entry["thread_struct"].value<std::uintptr_t>();
         const auto exe = entry["exe"].value<std::u8string>();
         const auto game_docs = entry["game_docs"].value<std::u8string>();
 
         if (!scripts) {
-            throw std::runtime_error{std::string{k} +
-                                     ": scripts failed to parse"};
+            throw std::runtime_error{std::string{k} + ": scripts failed to parse"};
         }
         if (!base) {
             throw std::runtime_error{std::string{k} + ": base failed to parse"};
         }
         if (!threadStruct) {
-            throw std::runtime_error{std::string{k} +
-                                     ": threadStruct failed to parse"};
+            throw std::runtime_error{std::string{k} + ": threadStruct failed to parse"};
         }
         if (!exe) {
             throw std::runtime_error{std::string{k} + ": exe failed to parse"};
         }
         if (!game_docs) {
-            throw std::runtime_error{std::string{k} +
-                                     ": game_docs failed to parse"};
+            throw std::runtime_error{std::string{k} + ": game_docs failed to parse"};
         }
 
         std::vector<ScriptPath> paths;
@@ -51,31 +47,27 @@ Config Config::load(const fs::path& path) {
             const auto relative = v["relative"].value<bool>();
 
             if (!str) {
-                throw std::runtime_error{std::string{k} + ": at index " +
-                                         std::to_string(i) +
+                throw std::runtime_error{std::string{k} + ": at index " + std::to_string(i) +
                                          ": script entry path failed to parse"};
             }
             if (!relative) {
-                throw std::runtime_error{
-                    std::string{k} + ": at index " + std::to_string(i) +
-                    ": script entry relative failed to parse"};
+                throw std::runtime_error{std::string{k} + ": at index " + std::to_string(i) +
+                                         ": script entry relative failed to parse"};
             }
 
             paths.emplace_back(*str, *relative);
         }
 
-        config.infos.emplace(*exe,
-                             GameInfo{.pointerStructOffset = *threadStruct,
-                                      .baseAddress = *base,
-                                      .scriptPaths = std::move(paths),
-                                      .gameDocsPathStr = *game_docs});
+        config.infos.emplace(*exe, GameInfo{.pointerStructOffset = *threadStruct,
+                                            .baseAddress = *base,
+                                            .scriptPaths = std::move(paths),
+                                            .gameDocsPathStr = *game_docs});
     }
 
     return config;
 }
 
-std::optional<std::reference_wrapper<const GameInfo>> Config::gameInfo(
-    const std::u8string& exe) const {
+std::optional<std::reference_wrapper<const GameInfo>> Config::gameInfo(const std::u8string& exe) const {
     if (auto info = infos.find(exe); info != infos.end()) {
         return std::cref(info->second);
     } else {

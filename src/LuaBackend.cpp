@@ -6,15 +6,13 @@
 
 namespace fs = std::filesystem;
 
-LuaBackend::LuaBackend(const std::vector<fs::path>& ScriptPaths,
-                       std::uint64_t BaseInput) {
+LuaBackend::LuaBackend(const std::vector<fs::path>& ScriptPaths, std::uint64_t BaseInput) {
     frameLimit = 16;
     LoadScripts(ScriptPaths, BaseInput);
 }
 
-int LuaBackend::ExceptionHandle(
-    lua_State* luaState, sol::optional<const std::exception&> thrownException,
-    sol::string_view description) {
+int LuaBackend::ExceptionHandle(lua_State* luaState, sol::optional<const std::exception&> thrownException,
+                                sol::string_view description) {
     (void)description;
 
     const std::exception _ex = *thrownException;
@@ -23,8 +21,7 @@ int LuaBackend::ExceptionHandle(
     return sol::stack::push(luaState, _ex.what());
 }
 
-void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths,
-                             std::uint64_t BaseInput) {
+void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths, std::uint64_t BaseInput) {
     loadedScripts.clear();
 
     for (auto scriptsDir : ScriptPaths) {
@@ -71,8 +68,7 @@ void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths,
 
             _script->luaState["ENGINE_VERSION"] = 5;
             _script->luaState["ENGINE_TYPE"] = "BACKEND";
-            _script->luaState["GAME_ID"] = CRC::Calculate(
-                _pathExe.c_str(), _pathExe.length(), CRC::CRC_32());
+            _script->luaState["GAME_ID"] = CRC::Calculate(_pathExe.c_str(), _pathExe.length(), CRC::CRC_32());
             _script->luaState["BASE_ADDR"] = BaseInput;
 
             const auto _filePath = _path.path();
@@ -81,12 +77,9 @@ void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths,
             if (_filePath.extension() == ".lua") {
                 _script->luaState["LUA_NAME"] = _filePath.filename().string();
 
-                ConsoleLib::MessageOutput(
-                    "Found script: \"" + _filePathStr + "\" Initializing...\n",
-                    0);
+                ConsoleLib::MessageOutput("Found script: \"" + _filePathStr + "\" Initializing...\n", 0);
 
-                auto _result = _script->luaState.script_file(
-                    _filePathStr, &sol::script_pass_on_error);
+                auto _result = _script->luaState.script_file(_filePathStr, &sol::script_pass_on_error);
 
                 _script->initFunction = _script->luaState["_OnInit"];
                 _script->frameFunction = _script->luaState["_OnFrame"];
@@ -118,15 +111,13 @@ void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths,
                             "exist.\n",
                             2);
 
-                    ConsoleLib::MessageOutput(
-                        "Initialization of this script was successful!\n\n", 1);
+                    ConsoleLib::MessageOutput("Initialization of this script was successful!\n\n", 1);
 
                     loadedScripts.push_back(std::move(_script));
                 } else {
                     sol::error err = _result;
                     ConsoleLib::MessageOutput(err.what() + '\n', 3);
-                    ConsoleLib::MessageOutput(
-                        "Initialization of this script was aborted.\n", 3);
+                    ConsoleLib::MessageOutput("Initialization of this script was aborted.\n", 3);
                 }
             }
         }
@@ -179,55 +170,48 @@ void LuaBackend::SetFunctions(LuaState* _state) {
     _state->set_function("UpdateLImage", DCInstance::UpdateLImage);
     _state->set_function("UpdateSImage", DCInstance::UpdateSImage);
 
-    _state->set_function(
-        "ULShift32",
-        [](std::uint32_t base, std::uint32_t shift) { return base << shift; });
+    _state->set_function("ULShift32", [](std::uint32_t base, std::uint32_t shift) { return base << shift; });
 
-    _state->set_function(
-        "ConsolePrint",
-        sol::overload(
-            [_state](sol::object Text) {
-                HANDLE _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    _state->set_function("ConsolePrint",
+                         sol::overload(
+                             [_state](sol::object Text) {
+                                 HANDLE _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
-                SetConsoleTextAttribute(_hConsole, 14);
-                std::cout
-                    << "[" + _state->globals()["LUA_NAME"].get<std::string>() +
-                           "] ";
+                                 SetConsoleTextAttribute(_hConsole, 14);
+                                 std::cout << "[" + _state->globals()["LUA_NAME"].get<std::string>() + "] ";
 
-                SetConsoleTextAttribute(_hConsole, 7);
-                std::cout << Text.as<std::string>() << '\n';
-            },
+                                 SetConsoleTextAttribute(_hConsole, 7);
+                                 std::cout << Text.as<std::string>() << '\n';
+                             },
 
-            [_state](sol::object Text, int MessageType) {
-                HANDLE _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+                             [_state](sol::object Text, int MessageType) {
+                                 HANDLE _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
-                SetConsoleTextAttribute(_hConsole, 14);
-                std::cout
-                    << "[" + _state->globals()["LUA_NAME"].get<std::string>() +
-                           "] ";
+                                 SetConsoleTextAttribute(_hConsole, 14);
+                                 std::cout << "[" + _state->globals()["LUA_NAME"].get<std::string>() + "] ";
 
-                switch (MessageType) {
-                    case 0:
-                        SetConsoleTextAttribute(_hConsole, 11);
-                        std::cout << "MESSAGE: ";
-                        break;
-                    case 1:
-                        SetConsoleTextAttribute(_hConsole, 10);
-                        std::cout << "SUCCESS: ";
-                        break;
-                    case 2:
-                        SetConsoleTextAttribute(_hConsole, 14);
-                        std::cout << "WARNING: ";
-                        break;
-                    case 3:
-                        SetConsoleTextAttribute(_hConsole, 12);
-                        std::cout << "ERROR: ";
-                        break;
-                }
+                                 switch (MessageType) {
+                                     case 0:
+                                         SetConsoleTextAttribute(_hConsole, 11);
+                                         std::cout << "MESSAGE: ";
+                                         break;
+                                     case 1:
+                                         SetConsoleTextAttribute(_hConsole, 10);
+                                         std::cout << "SUCCESS: ";
+                                         break;
+                                     case 2:
+                                         SetConsoleTextAttribute(_hConsole, 14);
+                                         std::cout << "WARNING: ";
+                                         break;
+                                     case 3:
+                                         SetConsoleTextAttribute(_hConsole, 12);
+                                         std::cout << "ERROR: ";
+                                         break;
+                                 }
 
-                SetConsoleTextAttribute(_hConsole, 7);
-                std::cout << Text.as<std::string>() << '\n';
-            }));
+                                 SetConsoleTextAttribute(_hConsole, 7);
+                                 std::cout << Text.as<std::string>() << '\n';
+                             }));
 
     _state->set_function("GetHertz", [this]() {
         switch (frameLimit) {

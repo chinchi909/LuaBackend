@@ -6,8 +6,7 @@ void DCInstance::InitializeRPC(const char* applicationID) {
     std::memset(&DCInstance::Presence, 0, sizeof(DCInstance::Presence));
 
     auto _currTime = std::chrono::system_clock::now().time_since_epoch();
-    auto _secondCast =
-        std::chrono::duration_cast<std::chrono::seconds>(_currTime);
+    auto _secondCast = std::chrono::duration_cast<std::chrono::seconds>(_currTime);
 
     DCInstance::Presence.startTimestamp = _secondCast.count();
     Discord_UpdatePresence(&DCInstance::Presence);
