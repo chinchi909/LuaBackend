@@ -1,0 +1,3 @@
+#pragma once
+
+#define HOOK_VERSION "@PROGRAM_VERSION@"

@@ -6,7 +6,6 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
-#include <span>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -31,6 +30,7 @@
 #include <thread>
 
 namespace fs = std::filesystem;
+namespace ranges = std::ranges;
 
 using MiniDumpWriteDumpProc = decltype(&MiniDumpWriteDump_);
 
@@ -46,15 +46,15 @@ std::optional<GameInfo> gameInfo;
 
 std::uint64_t moduleAddress = 0;
 
-template <std::bidirectional_iterator It>
-requires std::same_as<std::iter_value_t<It>, std::uintptr_t> std::optional<std::uintptr_t> followPointerChain(
-    std::uintptr_t start, It offsets_begin, It offsets_end) {
+template <ranges::bidirectional_range R>
+requires std::same_as<ranges::range_value_t<R>, std::uintptr_t> std::optional<std::uintptr_t> followPointerChain(
+    std::uintptr_t start, const R& offsets) {
     std::uintptr_t current = start;
 
-    for (auto it = offsets_begin; it != offsets_end; ++it) {
+    for (auto it = ranges::begin(offsets); it != ranges::end(offsets); ++it) {
         if (current == 0) return {};
 
-        if (it != offsets_end - 1) {
+        if (it != ranges::end(offsets) - 1) {
             current = *reinterpret_cast<std::uintptr_t*>(current + *it);
         } else {
             current += *it;
@@ -91,12 +91,12 @@ LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
 bool hookGame() {
     static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
-    constexpr auto frameProcOffsets = std::to_array<std::uintptr_t>({0x3E8, 0x0, 0x20});
-    constexpr auto graphicsProcOffsets = std::to_array<std::uintptr_t>({0x2D8});
+    constexpr static auto frameProcOffsets = std::to_array<std::uintptr_t>({0x3E8, 0x0, 0x20});
+    constexpr static auto graphicsProcOffsets = std::to_array<std::uintptr_t>({0x2D8});
 
     std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
-    if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets.begin(), frameProcOffsets.end())) {
+    if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets)) {
         frameProcPtr = reinterpret_cast<GameFrameProc*>(*ptr);
     } else {
         return false;
