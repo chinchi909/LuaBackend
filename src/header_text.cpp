@@ -1,6 +1,6 @@
 #include "header_text.h"
 
-#include <version.h>
+#include <build_info.h>
 
 #include <algorithm>
 #include <array>
