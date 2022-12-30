@@ -32,3 +32,6 @@ Installation instructions are in [INSTALL.md](INSTALL.md).
 ## Why is the dll file named DBGHELP?
 This is so that LuaBackend Hook can hook into the game without requiring an EXE patch, but still
 be able to launch automatically with the game.
+
+For platforms where hooking as DBGHELP does not work such as Linux using Wine, a version
+hooking as DINPUT8 is also provided.
