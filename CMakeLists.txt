@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(LuaBackendHook C CXX)
+project(LuaBackendHook LANGUAGES CXX)
 
 set(PROGRAM_VERSION "" CACHE STRING "Program version override")
 
