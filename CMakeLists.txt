@@ -24,14 +24,22 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
     endif()
 endif()
 
-if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/ztd/CMakeLists.txt" OR NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/wil/CMakeLists.txt")
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/wil/CMakeLists.txt")
     message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
 endif()
+
+include(FetchContent)
+
+FetchContent_Declare(ztd.text
+    GIT_REPOSITORY https://github.com/soasis/text.git
+    GIT_SHALLOW    ON
+    GIT_TAG        main)
+
+FetchContent_MakeAvailable(ztd.text)
 
 include_directories(external/include)
 
 add_subdirectory(external/subproject/lua544)
-add_subdirectory(external/subproject/ztd)
 
 if(NOT MSVC)
     message(FATAL_ERROR "LuaBackendHook must be built using MSVC.")
@@ -76,7 +84,7 @@ add_custom_target(build-info
 )
 
 add_library(DBGHELP SHARED ${SOURCE})
-add_dependencies(DBGHELP build-info ztd::text)
+add_dependencies(DBGHELP build-info)
 
 target_compile_options(DBGHELP PRIVATE /W4)
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)

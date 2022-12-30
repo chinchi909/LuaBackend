@@ -47,8 +47,8 @@ std::optional<GameInfo> gameInfo;
 std::uint64_t moduleAddress = 0;
 
 template <ranges::bidirectional_range R>
-requires std::same_as<ranges::range_value_t<R>, std::uintptr_t> std::optional<std::uintptr_t> followPointerChain(
-    std::uintptr_t start, const R& offsets) {
+    requires std::same_as<ranges::range_value_t<R>, std::uintptr_t>
+std::optional<std::uintptr_t> followPointerChain(std::uintptr_t start, const R& offsets) {
     std::uintptr_t current = start;
 
     for (auto it = ranges::begin(offsets); it != ranges::end(offsets); ++it) {
