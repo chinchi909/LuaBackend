@@ -44,6 +44,7 @@ GameFrameProc frameProc = nullptr;
 std::optional<Config> config;
 std::optional<GameInfo> gameInfo;
 
+HMODULE gameModule = nullptr;
 std::uint64_t moduleAddress = 0;
 
 template <ranges::bidirectional_range R>
@@ -104,11 +105,33 @@ bool hookGame() {
 
     if (*frameProcPtr == nullptr) return false;
 
-    DWORD originalProt = 0;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), PAGE_READWRITE, &originalProt);
+    // Method for changing memory region permissions adapted from Panacea's implementation
+    // https://github.com/OpenKH/OpenKh/blob/5878a3b/OpenKh.Research.Panacea/Panacea.cpp#L256-L277
+    ULONG_PTR baseImage = (ULONG_PTR)gameModule;
+
+    PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)baseImage;
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(baseImage + dosHeaders->e_lfanew);
+
+    PIMAGE_SECTION_HEADER section =
+        (PIMAGE_SECTION_HEADER)((std::intptr_t)&ntHeaders->OptionalHeader + ntHeaders->FileHeader.SizeOfOptionalHeader);
+    MEMORY_BASIC_INFORMATION meminf;
+    for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+        VirtualQuery((const void*)(baseImage + section[i].VirtualAddress), &meminf, sizeof(meminf));
+        DWORD oldprot;
+        switch (meminf.Protect & 0xFF) {
+            case PAGE_EXECUTE:
+            case PAGE_EXECUTE_READ:
+                VirtualProtect(meminf.BaseAddress, meminf.RegionSize, PAGE_EXECUTE_WRITECOPY, &oldprot);
+                break;
+            case PAGE_NOACCESS:
+            case PAGE_READONLY:
+                VirtualProtect(meminf.BaseAddress, meminf.RegionSize, PAGE_WRITECOPY, &oldprot);
+                break;
+        }
+    }
+
     frameProc = *frameProcPtr;
     *frameProcPtr = frameHook;
-    VirtualProtect(frameProcPtr, sizeof(frameProcPtr), originalProt, &originalProt);
 
     SetUnhandledExceptionFilter(crashDumpHandler);
 
@@ -137,7 +160,8 @@ DWORD WINAPI entry(LPVOID lpParameter) {
             return 0;
         }
 
-        moduleAddress = (std::uint64_t)GetModuleHandleW(nullptr);
+        gameModule = GetModuleHandleW(nullptr);
+        moduleAddress = (std::uint64_t)gameModule;
         std::uint64_t baseAddress = moduleAddress + gameInfo->baseAddress;
 
         fs::path gameDocsRoot = [&]() {
