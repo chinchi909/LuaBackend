@@ -1,32 +1,15 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.21)
 
 project(LuaBackendHook C CXX)
 
 set(PROGRAM_VERSION "" CACHE STRING "Program version override")
 
+set(WIL_BUILD_TESTS OFF)
+
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-# Update submodules as needed
-    option(GIT_SUBMODULE "Check submodules during build" ON)
-    if(GIT_SUBMODULE)
-        message(STATUS "Submodule update")
-        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-        endif()
-    endif()
-endif()
-
-if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/subproject/wil/CMakeLists.txt")
-    message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
-endif()
 
 include(FetchContent)
 
@@ -35,7 +18,17 @@ FetchContent_Declare(ztd.text
     GIT_SHALLOW    ON
     GIT_TAG        main)
 
-FetchContent_MakeAvailable(ztd.text)
+FetchContent_Declare(wil
+    GIT_REPOSITORY https://github.com/microsoft/wil.git
+    GIT_SHALLOW    ON
+    GIT_TAG        master)
+
+FetchContent_Declare(tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_SHALLOW    ON
+    GIT_TAG        master)
+
+FetchContent_MakeAvailable(ztd.text wil tomlplusplus)
 
 include_directories(external/include)
 
@@ -75,7 +68,7 @@ add_custom_target(clang-format
 )
 
 add_custom_target(build-info
-    COMMAND ${CMAKE_COMMAND} 
+    COMMAND ${CMAKE_COMMAND}
         -DPROGRAM_VERSION:STRING=${PROGRAM_VERSION}
         -DINSTALL_DIR:STRING=${CMAKE_CURRENT_BINARY_DIR}
         -P CMake/BuildInfo.cmake
@@ -90,12 +83,16 @@ target_compile_options(DBGHELP PRIVATE /W4)
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
 target_include_directories(DBGHELP PRIVATE
     external/subproject/lua544
-    external/subproject/wil/include
-    external/include/tomlplusplus/include
     external/include/discord
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 target_link_directories(DBGHELP PUBLIC external/lib)
-target_link_libraries(DBGHELP PUBLIC lua54 ztd::text discord-rpc.lib)
+target_link_libraries(DBGHELP PUBLIC
+    ztd::text
+    WIL
+    tomlplusplus::tomlplusplus
+    lua54
+    discord-rpc.lib
+)
 
 unset(PROGRAM_VERSION CACHE)
