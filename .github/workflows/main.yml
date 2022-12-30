@@ -26,19 +26,8 @@ jobs:
         cp build/Release/DBGHELP.dll artifacts
         cp build/external/subproject/lua544/Release/lua54.dll artifacts
         cp config/LuaBackend.toml artifacts
-    - name: Copy DINPUT8 Artifacts
-      run: |
-        mkdir artifacts-dinput8
-        cp build/Release/DINPUT8.dll artifacts-dinput8
-        cp build/external/subproject/lua544/Release/lua54.dll artifacts-dinput8
-        cp config/LuaBackend.toml artifacts-dinput8
     - name: Upload DBGHELP
       uses: actions/upload-artifact@v3
       with:
         name: DBGHELP
         path: artifacts
-    - name: Upload DINPUT8
-      uses: actions/upload-artifact@v3
-      with:
-        name: DINPUT8-linux
-        path: artifacts-dinput8

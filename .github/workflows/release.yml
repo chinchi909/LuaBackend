@@ -21,7 +21,6 @@ jobs:
     - name: Compress Artifacts
       run: |
         7z a DBGHELP.zip ./build/Release/DBGHELP.dll ./build/external/subproject/lua544/Release/lua54.dll ./config/LuaBackend.toml
-        7z a DINPUT8-linux.zip ./build/Release/DINPUT8.dll ./build/external/subproject/lua544/Release/lua54.dll ./config/LuaBackend.toml
     - name: Automatic Release
       uses: marvinpinto/action-automatic-releases@latest
       with:
@@ -30,4 +29,3 @@ jobs:
         draft: true
         files: |
           DBGHELP.zip
-          DINPUT8-linux.zip
