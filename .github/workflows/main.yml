@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
     - name: Build Solution
@@ -27,7 +27,7 @@ jobs:
         cp build/external/subproject/lua544/Release/lua54.dll artifacts
         cp config/LuaBackend.toml artifacts
     - name: Upload DBGHELP
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: DBGHELP
         path: artifacts
