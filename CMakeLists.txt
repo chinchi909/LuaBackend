@@ -4,7 +4,7 @@ project(LuaBackendHook C CXX)
 
 set(PROGRAM_VERSION "" CACHE STRING "Program version override")
 
-set(WIL_BUILD_TESTS OFF)
+option(WIL_BUILD_TESTS OFF)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
