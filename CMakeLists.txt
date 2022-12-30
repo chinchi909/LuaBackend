@@ -98,4 +98,19 @@ target_include_directories(DBGHELP PRIVATE
 target_link_directories(DBGHELP PUBLIC external/lib)
 target_link_libraries(DBGHELP PUBLIC lua54 ztd::text discord-rpc.lib)
 
+add_library(DINPUT8 SHARED ${SOURCE})
+add_dependencies(DINPUT8 build-info)
+
+target_compile_options(DINPUT8 PRIVATE /W4)
+target_compile_definitions(DINPUT8 PRIVATE -DUNICODE -D_UNICODE -DDINPUT8_HOOK)
+target_include_directories(DINPUT8 PRIVATE
+    external/subproject/lua544
+    external/subproject/wil/include
+    external/include/tomlplusplus/include
+    external/include/discord
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+target_link_directories(DINPUT8 PUBLIC external/lib)
+target_link_libraries(DINPUT8 PUBLIC lua54 ztd::text discord-rpc.lib)
+
 unset(PROGRAM_VERSION CACHE)

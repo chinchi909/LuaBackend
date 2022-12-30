@@ -17,6 +17,13 @@
 #include <wil/win32_helpers.h>
 #include <windows.h>
 
+#ifdef DINPUT8_HOOK
+using DirectInput8CreateProc = HRESULT(WINAPI*)(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut,
+                                                LPVOID punkOuter);
+
+DirectInput8CreateProc createProc = nullptr;
+#endif
+
 #define MiniDumpWriteDump MiniDumpWriteDump_
 #include <minidumpapiset.h>
 #undef MiniDumpWriteDump
@@ -215,6 +222,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     (void)hinstDLL;
     (void)lpReserved;
     static HMODULE dbgHelp = nullptr;
+#ifdef DINPUT8_HOOK
+    static HMODULE dinput8 = nullptr;
+#endif
 
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH: {
@@ -225,6 +235,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
             dbgHelp = LoadLibraryW(dllPath.wstring().c_str());
             writeDumpProc = (MiniDumpWriteDumpProc)GetProcAddress(dbgHelp, "MiniDumpWriteDump");
 
+#ifdef DINPUT8_HOOK
+            fs::path dinput8Path = fs::path{systemDirectoryStr} / L"DINPUT8.dll";
+
+            dinput8 = LoadLibraryW(dinput8Path.wstring().c_str());
+            createProc = (DirectInput8CreateProc)GetProcAddress(dinput8, "DirectInput8Create");
+#endif
+
             if (CreateThread(nullptr, 0, entry, nullptr, 0, nullptr) == nullptr) {
                 return FALSE;
             }
@@ -233,6 +250,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         }
         case DLL_PROCESS_DETACH: {
             FreeLibrary(dbgHelp);
+#ifdef DINPUT8_HOOK
+            FreeLibrary(dinput8);
+#endif
             break;
         }
         default:
@@ -242,9 +262,16 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     return TRUE;
 }
 
+#ifdef DINPUT8_HOOK
+extern "C" __declspec(dllexport) HRESULT WINAPI
+    DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf, LPVOID* ppvOut, LPVOID punkOuter) {
+    return createProc(hinst, dwVersion, riidltf, ppvOut, punkOuter);
+}
+#else
 extern "C" __declspec(dllexport) BOOL WINAPI
     MiniDumpWriteDump(HANDLE hProcess, DWORD ProcessId, HANDLE hFile, MINIDUMP_TYPE DumpType,
                       PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam, PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
                       PMINIDUMP_CALLBACK_INFORMATION CallbackParam) {
     return writeDumpProc(hProcess, ProcessId, hFile, DumpType, ExceptionParam, UserStreamParam, CallbackParam);
 }
+#endif
