@@ -22,6 +22,26 @@ private:
     static inline PROCESS_INFORMATION _pInfo;
     static inline bool _bigEndian = false;
 
+    class protect_lock {
+    private:
+        std::uintptr_t address;
+        std::size_t size;
+        DWORD protection;
+        bool is_acquired;
+
+    public:
+        protect_lock(std::uintptr_t address, std::size_t size)
+            : address(address), size(size), protection(0), is_acquired(false) {
+            if (VirtualProtect((void*)address, size, PAGE_READWRITE, &protection) != 0) is_acquired = true;
+        }
+
+        ~protect_lock() {
+            if (good()) VirtualProtect((void*)address, size, protection, &protection);
+        }
+
+        bool good() const noexcept { return is_acquired; }
+    };
+
 public:
     static inline std::uint64_t ExecAddress;
     static inline std::uint64_t BaseAddress;
@@ -116,7 +136,9 @@ public:
 
     template <typename T, std::enable_if_t<std::is_trivially_constructible_v<T>, int> = 0>
     static T readScalarAbsolute(std::uint64_t Address) {
-        if (Address == 0) return 0;
+        protect_lock lock(Address, sizeof(T));
+        if (!lock.good()) return 0;
+
         return *reinterpret_cast<T*>(Address);
     }
 
@@ -141,20 +163,25 @@ public:
     static inline bool ReadBoolAbsolute(std::uint64_t Address) { return ReadByteAbsolute(Address) != 0; }
 
     static std::vector<std::uint8_t> ReadBytesAbsolute(std::uint64_t Address, int Length) {
-        if (Address == 0) return {};
+        std::vector<std::uint8_t> _buffer;
 
-        std::vector<std::uint8_t> _buffer(Length);
-        std::memcpy(_buffer.data(), (void*)Address, Length);
+        protect_lock lock(Address, static_cast<std::size_t>(Length));
+        if (lock.good()) {
+            _buffer.resize(Length);
+            std::memcpy(_buffer.data(), (void*)Address, Length);
+        }
 
         return _buffer;
     }
 
     static std::string ReadStringAbsolute(std::uint64_t Address, int Length) {
-        if (Address == 0) return {};
-
         std::string _output;
-        _output.resize(Length);
-        std::memcpy(_output.data(), (void*)Address, Length);
+
+        protect_lock lock(Address, static_cast<std::size_t>(Length));
+        if (lock.good()) {
+            _output.resize(Length);
+            std::memcpy(_output.data(), (void*)Address, Length);
+        }
 
         return _output;
     }
@@ -210,9 +237,10 @@ public:
 
     template <typename T, std::enable_if_t<std::is_trivially_copy_assignable_v<T>, int> = 0>
     static void writeScalarAbsolute(std::uint64_t Address, T t) {
-        if (Address != 0) {
-            *reinterpret_cast<T*>(Address) = t;
-        }
+        protect_lock lock(Address, sizeof(T));
+        if (!lock.good()) return;
+
+        *reinterpret_cast<T*>(Address) = t;
     }
 
     static inline void WriteByteAbsolute(std::uint64_t Address, std::uint8_t Input) {
@@ -240,15 +268,13 @@ public:
     }
 
     static void WriteBytesAbsolute(std::uint64_t Address, std::vector<std::uint8_t> Input) {
-        if (Address != 0) {
-            std::memcpy((void*)Address, Input.data(), Input.size());
-        }
+        protect_lock lock(Address, Input.size());
+        if (lock.good()) std::memcpy((void*)Address, Input.data(), Input.size());
     }
 
     static void WriteStringAbsolute(std::uint64_t Address, std::string Input) {
-        if (Address != 0) {
-            std::memcpy((void*)Address, Input.data(), Input.size());
-        }
+        protect_lock lock(Address, Input.size());
+        if (lock.good()) std::memcpy((void*)Address, Input.data(), Input.size());
     }
 
     template <typename T>
@@ -301,9 +327,8 @@ public:
     }
 
     static void WriteExec(std::uint64_t Address, std::vector<std::uint8_t> Input) {
-        if (Address != 0) {
-            std::memcpy((void*)(Address + ExecAddress), Input.data(), Input.size());
-        }
+        protect_lock lock(Address, Input.size());
+        if (lock.good()) std::memcpy((void*)(Address + ExecAddress), Input.data(), Input.size());
     }
 
     static inline std::uint64_t GetPointer(std::uint64_t Address, std::uint64_t Offset, bool absolute = false) {
