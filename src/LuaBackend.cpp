@@ -5,6 +5,8 @@
 #include <string>
 #include <utility>
 
+#include "kh2.h"
+
 namespace fs = std::filesystem;
 
 LuaBackend::LuaBackend(const std::vector<fs::path>& ScriptPaths,
@@ -252,4 +254,8 @@ void LuaBackend::SetFunctions(LuaState* _state) {
       break;
     }
   });
+
+  if (kh2::is_kh2_global()) {
+    _state->set_function("KH2_Die", kh2::die);
+  }
 }
