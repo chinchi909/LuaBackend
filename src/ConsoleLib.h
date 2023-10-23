@@ -8,4 +8,4 @@
 
 namespace ConsoleLib {
 void MessageOutput(const std::string& Text, int MessageType);
-};  // namespace ConsoleLib
+}; // namespace ConsoleLib

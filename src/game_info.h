@@ -5,13 +5,13 @@
 #include <string>
 
 struct ScriptPath {
-    std::u8string str;
-    bool relative;
+  std::u8string str;
+  bool relative;
 };
 
 struct GameInfo {
-    std::uintptr_t pointerStructOffset;
-    std::uintptr_t baseAddress;
-    std::vector<ScriptPath> scriptPaths;
-    std::u8string gameDocsPathStr;
+  std::uintptr_t pointerStructOffset;
+  std::uintptr_t baseAddress;
+  std::vector<ScriptPath> scriptPaths;
+  std::u8string gameDocsPathStr;
 };

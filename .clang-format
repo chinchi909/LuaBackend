@@ -1,8 +1,5 @@
 ---
 Language: Cpp
-BasedOnStyle: Google
-ColumnLimit: 120
-AccessModifierOffset: -4
-DerivePointerAlignment: false
-IndentWidth: 4
+BasedOnStyle: LLVM
+PointerAlignment: Left
 ---
