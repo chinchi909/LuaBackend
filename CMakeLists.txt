@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.7...3.27)
+
+if(${CMAKE_VERSION} VERSION_LESS 3.12)
+    cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
+endif()
 
 project(LuaBackendHook LANGUAGES CXX)
 
@@ -6,10 +10,9 @@ set(PROGRAM_VERSION "" CACHE STRING "Program version override")
 
 option(WIL_BUILD_TESTS OFF)
 
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
 
@@ -30,15 +33,20 @@ FetchContent_Declare(tomlplusplus
 
 FetchContent_MakeAvailable(ztd.text wil tomlplusplus)
 
-include_directories(external/include)
-
 add_subdirectory(external/subproject/lua544)
 
 if(NOT MSVC)
     message(FATAL_ERROR "LuaBackendHook must be built using MSVC.")
 endif()
 
-set(HEADERS
+set(SOURCE
+    src/main_dll.cpp
+    src/config.cpp
+    src/lua_exec.cpp
+    src/header_text.cpp
+    src/ConsoleLib.cpp
+    src/DCInstance.cpp
+    src/LuaBackend.cpp
     src/config.h
     src/game_info.h
     src/lua_exec.h
@@ -50,20 +58,8 @@ set(HEADERS
     src/MemoryLib.h
 )
 
-set(SOURCE
-    src/main_dll.cpp
-    src/config.cpp
-    src/lua_exec.cpp
-    src/header_text.cpp
-    src/ConsoleLib.cpp
-    src/DCInstance.cpp
-    src/LuaBackend.cpp
-)
-
-set(ALL_FILES ${HEADERS} ${SOURCE})
-
 add_custom_target(clang-format
-    COMMAND clang-format -i -style=file ${ALL_FILES}
+    COMMAND clang-format -i -style=file ${SOURCE}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
@@ -82,12 +78,13 @@ add_dependencies(DBGHELP build-info)
 target_compile_options(DBGHELP PRIVATE /W4)
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
 target_include_directories(DBGHELP PRIVATE
+    external/include
     external/subproject/lua544
     external/include/discord
     ${CMAKE_CURRENT_BINARY_DIR}
 )
-target_link_directories(DBGHELP PUBLIC external/lib)
-target_link_libraries(DBGHELP PUBLIC
+target_link_directories(DBGHELP PRIVATE external/lib)
+target_link_libraries(DBGHELP PRIVATE
     ztd::text
     WIL
     tomlplusplus::tomlplusplus
