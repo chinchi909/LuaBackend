@@ -102,8 +102,6 @@ bool hookGame() {
 
   constexpr static auto frameProcOffsets =
       std::to_array<std::uintptr_t>({0x3E8, 0x0, 0x20});
-  constexpr static auto graphicsProcOffsets =
-      std::to_array<std::uintptr_t>({0x2D8});
 
   std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
 
@@ -129,9 +127,7 @@ bool hookGame() {
   return true;
 }
 
-DWORD WINAPI entry(LPVOID lpParameter) {
-  (void)lpParameter;
-
+DWORD WINAPI entry([[maybe_unused]] LPVOID lpParameter) {
   std::wstring modulePathStr;
   wil::GetModuleFileNameW(nullptr, modulePathStr);
 
@@ -205,9 +201,8 @@ DWORD WINAPI entry(LPVOID lpParameter) {
   return 0;
 }
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
-  (void)hinstDLL;
-  (void)lpReserved;
+BOOL WINAPI DllMain([[maybe_unused]] HINSTANCE hinstDLL, DWORD fdwReason,
+                    [[maybe_unused]] LPVOID lpReserved) {
   static HMODULE dbgHelp = nullptr;
   static HMODULE dinput8 = nullptr;
 

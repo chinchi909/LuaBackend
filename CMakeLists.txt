@@ -31,13 +31,18 @@ FetchContent_Declare(tomlplusplus
     GIT_SHALLOW    ON
     GIT_TAG        master)
 
-FetchContent_MakeAvailable(ztd.text wil tomlplusplus)
+# Disable DiscordRPC from running clang-format to work around issue with
+# its .clang-format file.
+set(CLANG_FORMAT_CMD "")
+
+FetchContent_Declare(DiscordRPC
+    GIT_REPOSITORY https://github.com/discord/discord-rpc.git
+    GIT_SHALLOW    ON
+    GIT_TAG        master)
+
+FetchContent_MakeAvailable(ztd.text wil tomlplusplus DiscordRPC)
 
 add_subdirectory(external/subproject/lua544)
-
-if(NOT MSVC)
-    message(FATAL_ERROR "LuaBackendHook must be built using MSVC.")
-endif()
 
 set(SOURCE
     src/main_dll.cpp
@@ -75,21 +80,33 @@ add_custom_target(build-info
 add_library(DBGHELP SHARED ${SOURCE})
 add_dependencies(DBGHELP build-info)
 
-target_compile_options(DBGHELP PRIVATE /W4)
+if(MSVC)
+    target_compile_options(DBGHELP PRIVATE /W4)
+else()
+    target_compile_options(DBGHELP PRIVATE
+        -g
+        -Wall
+        -Werror
+        -Wextra
+        -Wpedantic
+        -Wno-language-extension-token
+        -Wno-gnu-zero-variadic-macro-arguments
+    )
+endif()
+
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
 target_include_directories(DBGHELP PRIVATE
     external/include
     external/subproject/lua544
-    external/include/discord
+    ${DiscordRPC_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}
 )
-target_link_directories(DBGHELP PRIVATE external/lib)
 target_link_libraries(DBGHELP PRIVATE
     ztd::text
     WIL
     tomlplusplus::tomlplusplus
     lua54
-    discord-rpc.lib
+    discord-rpc
 )
 
 unset(PROGRAM_VERSION CACHE)

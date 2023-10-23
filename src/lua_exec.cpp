@@ -151,7 +151,7 @@ void ExecuteLUA() {
       _sClock = std::chrono::high_resolution_clock::now();
     }
 
-    for (int i = 0; i < _backend->loadedScripts.size(); i++) {
+    for (std::size_t i = 0; i < _backend->loadedScripts.size(); i++) {
       auto& _script = _backend->loadedScripts[i];
 
       if (_script->frameFunction) {

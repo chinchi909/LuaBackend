@@ -2,6 +2,7 @@
 
 #include <crcpp/CRC.h>
 
+#include <string>
 #include <utility>
 
 namespace fs = std::filesystem;
@@ -18,7 +19,7 @@ int LuaBackend::ExceptionHandle(
   (void)description;
 
   const std::exception _ex = *thrownException;
-  ConsoleLib::MessageOutput(_ex.what() + '\n', 3);
+  ConsoleLib::MessageOutput(std::string{_ex.what()} + "\n", 3);
 
   return sol::stack::push(luaState, _ex.what());
 }
@@ -122,7 +123,7 @@ void LuaBackend::LoadScripts(const std::vector<fs::path>& ScriptPaths,
           loadedScripts.push_back(std::move(_script));
         } else {
           sol::error err = _result;
-          ConsoleLib::MessageOutput(err.what() + '\n', 3);
+          ConsoleLib::MessageOutput(std::string{err.what()} + "\n", 3);
           ConsoleLib::MessageOutput(
               "Initialization of this script was aborted.\n", 3);
         }
