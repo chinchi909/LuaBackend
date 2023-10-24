@@ -51,7 +51,7 @@ bool die(bool mickey_counts) {
   // Wait for player to have control and not be in a menu before killing.
   int control = *std::bit_cast<int*>(mod + 0x2A148E8);
   int pause_flag = *std::bit_cast<int*>(mod + 0xAB9054);
-  if (control != 0 || pause_flag != 0)
+  if (control != 0 || (pause_flag & 1) != 0)
     return false;
 
   int* player_hp = *std::bit_cast<int**>(player_ptr + 0x5C0);
