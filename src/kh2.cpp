@@ -59,6 +59,10 @@ bool die(bool mickey_counts) {
   int player_form = *std::bit_cast<int*>(player_ptr + 0xDE0);
   bool is_mickey = player_form == 0xB;
 
+  // Prevent becoming Mickey from counting as a death.
+  if (*player_hp == 0)
+    return false;
+
   if (is_mickey) {
     *player_hp = 1;
     return mickey_counts;
