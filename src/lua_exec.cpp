@@ -1,5 +1,6 @@
 #include "lua_exec.h"
 
+#include <memory>
 #include <utility>
 
 #include "ConsoleLib.h"
@@ -17,7 +18,7 @@ static std::vector<fs::path> _scriptPaths;
 static bool _showConsole = false;
 static bool _requestedReset = false;
 
-static LuaBackend* _backend = nullptr;
+static std::unique_ptr<LuaBackend> _backend;
 
 static std::chrono::high_resolution_clock::time_point _sClock;
 static std::chrono::high_resolution_clock::time_point _msClock;
@@ -25,8 +26,8 @@ static std::chrono::high_resolution_clock::time_point _msClock;
 void ResetLUA() {
   std::printf("\n");
   ConsoleLib::MessageOutput("Reloading...\n\n", 0);
-  _backend = new LuaBackend(_scriptPaths,
-                            MemoryLib::ExecAddress + MemoryLib::BaseAddress);
+  _backend = std::make_unique<LuaBackend>(
+      _scriptPaths, MemoryLib::ExecAddress + MemoryLib::BaseAddress);
 
   if (_backend->loadedScripts.size() == 0)
     ConsoleLib::MessageOutput("No scripts found! Reload halted!\n\n", 3);
@@ -64,8 +65,8 @@ int EntryLUA(int ProcessID, HANDLE ProcessH, std::uint64_t TargetAddress,
 
   MemoryLib::ExternProcess(ProcessID, ProcessH, TargetAddress);
 
-  _backend =
-      new LuaBackend(_scriptPaths, MemoryLib::ExecAddress + TargetAddress);
+  _backend = std::make_unique<LuaBackend>(_scriptPaths, MemoryLib::ExecAddress +
+                                                            TargetAddress);
   _backend->frameLimit = 16;
 
   if (_backend->loadedScripts.size() == 0) {
