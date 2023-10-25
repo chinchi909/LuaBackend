@@ -81,10 +81,9 @@ add_library(DBGHELP SHARED ${SOURCE})
 add_dependencies(DBGHELP build-info)
 
 if(MSVC)
-    target_compile_options(DBGHELP PRIVATE /W4)
+    target_compile_options(DBGHELP PRIVATE /W4 /WX)
 else()
     target_compile_options(DBGHELP PRIVATE
-        -g
         -Wall
         -Werror
         -Wextra
