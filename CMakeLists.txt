@@ -18,18 +18,15 @@ include(FetchContent)
 
 FetchContent_Declare(ztd.text
     GIT_REPOSITORY https://github.com/soasis/text.git
-    GIT_SHALLOW    ON
-    GIT_TAG        main)
+    GIT_TAG        bba2e9207bb6e697a2bcf44b7e72e2b733153cab)
 
 FetchContent_Declare(wil
     GIT_REPOSITORY https://github.com/microsoft/wil.git
-    GIT_SHALLOW    ON
-    GIT_TAG        master)
+    GIT_TAG        8501377980a52d98d1b51d04f60f571a7f0dc3db)
 
 FetchContent_Declare(tomlplusplus
     GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_SHALLOW    ON
-    GIT_TAG        master)
+    GIT_TAG        d8fa9a1fddc90254cac2366dde23f0b613bc1280)
 
 # Disable DiscordRPC from running clang-format to work around issue with
 # its .clang-format file.
@@ -37,8 +34,7 @@ set(CLANG_FORMAT_CMD "")
 
 FetchContent_Declare(DiscordRPC
     GIT_REPOSITORY https://github.com/discord/discord-rpc.git
-    GIT_SHALLOW    ON
-    GIT_TAG        master)
+    GIT_TAG        963aa9f3e5ce81a4682c6ca3d136cddda614db33)
 
 FetchContent_MakeAvailable(ztd.text wil tomlplusplus DiscordRPC)
 
@@ -81,16 +77,10 @@ add_library(DBGHELP SHARED ${SOURCE})
 add_dependencies(DBGHELP build-info)
 
 if(MSVC)
-    target_compile_options(DBGHELP PRIVATE /W4 /WX)
+    # ZTD_STD_LIBRARY_RANGES is broken currently on MSVC
+    target_compile_options(DBGHELP PRIVATE -W4 -WX -DZTD_STD_LIBRARY_RANGES=0)
 else()
-    target_compile_options(DBGHELP PRIVATE
-        -Wall
-        -Werror
-        -Wextra
-        -Wpedantic
-        -Wno-language-extension-token
-        -Wno-gnu-zero-variadic-macro-arguments
-    )
+    target_compile_options(DBGHELP PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 target_compile_definitions(DBGHELP PRIVATE -DUNICODE -D_UNICODE)
@@ -101,7 +91,7 @@ target_include_directories(DBGHELP PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 target_link_libraries(DBGHELP PRIVATE
-    ztd::text
+    ztd.text
     WIL
     tomlplusplus::tomlplusplus
     lua54
