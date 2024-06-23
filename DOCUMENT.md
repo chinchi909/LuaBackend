@@ -24,8 +24,8 @@ List of types available: Byte, Short, Int, Long, Float, String, Boolean
 
 Example:
 ```lua
-    local _tempInt = ReadInt(0xDEADB00) -- Read an integer from address BaseAddress+0xDEADB00
-    local _tempByte = ReadByte(0xB007555) -- Read a byte from address BaseAddress+0xB007555
+    local _tempInt = ReadInt(0xDEADB00) -- Read an integer from address GameModule+0xDEADB00
+    local _tempByte = ReadByte(0xB007555) -- Read a byte from address GameModule+0xB007555
 ```
 
 ### Write\[XXXX\](Address, Value, Absolute = false)
@@ -39,8 +39,8 @@ List of types available: Byte, Short, Int, Long, Float, String, Boolean
 
 Example:
 ```lua
-    WriteShort(0xDEADB00, 0xFFFF) -- Write 0xFFFF to BaseAddress+0xDEADB00
-    WriteBoolean(0xB007555, true) -- Write true to BaseAddress+0xB007555
+    WriteShort(0xDEADB00, 0xFFFF) -- Write 0xFFFF to GameModule+0xDEADB00
+    WriteBoolean(0xB007555, true) -- Write true to GameModule+0xB007555
 ```
 
 ###  Read\[XXXX\]A(Address) / ReadStringA(Address, Length)
@@ -78,7 +78,7 @@ If **Absolute** is true, the address is taken as written and base address is not
 
 Example:
 ```lua
-    local _tempArray = ReadArray(0xBEEFDED, 0x10) -- Reads 16 bytes starting at BaseAddress+0xBEEFDED
+    local _tempArray = ReadArray(0xBEEFDED, 0x10) -- Reads 16 bytes starting at GameModule+0xBEEFDED
 ```
 
 ### WriteArray(Address, Array, Absolute = false)
@@ -89,7 +89,7 @@ If **Absolute** is true, the address is taken as written and base address is not
 Example:
 ```lua
     local _tempArray = { 0xFE, 0xA5, 0x70 }
-    WriteArray(0x6660420, _tempArray) -- Writes _tempArray to memory, starting at BaseAddress+0x6660420
+    WriteArray(0x6660420, _tempArray) -- Writes _tempArray to memory, starting at GameModule+0x6660420
 ```
 
 ### ReadArrayA(Address, Length)
@@ -122,7 +122,7 @@ If **Absolute** is true, the address is taken as written and base address is not
 
 Example:
 ```lua
-    local _tempPointer = GetPointer(0xBEEFDAD, 0x15) -- Reads the value at BaseAddress+0xBEEFDAD and adds 0x15 to it.
+    local _tempPointer = GetPointer(0xBEEFDAD, 0x15) -- Reads the value at GameModule+0xBEEFDAD and adds 0x15 to it.
 ```
 
 ### GetPointerA(Address, Offset)

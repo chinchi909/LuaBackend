@@ -32,8 +32,6 @@ Sample configuration:
 ```
 [kh1]
 scripts = [{ path = "D:\\kh1-scripts", relative = false }]
-base = 0x3A0606
-thread_struct = 0x22B7280
 exe = "KINGDOM HEARTS FINAL MIX.exe"
 game_docs = "KINGDOM HEARTS HD 1.5+2.5 ReMIX"
 
@@ -42,8 +40,6 @@ scripts = [
   { path = "scripts\\kh2", relative = true },
   { path = "C:\\Users\\johndoe\\bin\\KH\\PC\\openkh\\mod\\luascript", relative = false },
 ]
-base = 0x56454E
-thread_struct = 0x89E9A0
 exe = "KINGDOM HEARTS II FINAL MIX.exe"
 game_docs = "KINGDOM HEARTS HD 1.5+2.5 ReMIX"
 ```
