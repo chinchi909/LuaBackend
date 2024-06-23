@@ -97,20 +97,92 @@ LONG WINAPI crashDumpHandler(PEXCEPTION_POINTERS exceptionPointers) {
   return EXCEPTION_EXECUTE_HANDLER;
 }
 
+struct SectionInfo {
+  std::uintptr_t offset;
+  std::size_t size;
+};
+
+SectionInfo findTextSectionInfo() {
+  const auto basePtr = std::bit_cast<std::uint8_t*>(moduleAddress);
+  const auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(basePtr);
+  if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
+    throw std::runtime_error{"DOS header is corrupt"};
+  }
+
+  const auto ntHeaderPtr = basePtr + dosHeader->e_lfanew;
+  const auto ntHeader = reinterpret_cast<PIMAGE_NT_HEADERS64>(ntHeaderPtr);
+  if (ntHeader->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+    throw new std::runtime_error{"NT64 header is invalid"};
+  }
+
+  std::optional<SectionInfo> textSection;
+
+  for (WORD i = 0; i < ntHeader->FileHeader.NumberOfSections; i++) {
+    const auto sectionHeader = reinterpret_cast<PIMAGE_SECTION_HEADER>(
+        ntHeaderPtr + sizeof(IMAGE_NT_HEADERS64) +
+        (i * sizeof(IMAGE_SECTION_HEADER)));
+
+    constexpr char textSectionName[] = ".text";
+    if (std::memcmp(reinterpret_cast<char*>(sectionHeader->Name),
+                    textSectionName, sizeof(textSectionName) - 1) == 0) {
+      textSection = SectionInfo{
+          .offset = sectionHeader->VirtualAddress,
+          .size = sectionHeader->SizeOfRawData,
+      };
+    }
+  }
+
+  return textSection.value();
+}
+
+std::optional<GameFrameProc*> findFrameProc(const SectionInfo& textInfo) {
+  constexpr char sig[] = "\x48\x89\x35\xA7\xB6\x69\x00\x48\x8B\xC6";
+  constexpr char mask[] = "\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF";
+  static_assert(sizeof(sig) == sizeof(mask));
+
+  const char* textStart =
+      std::bit_cast<const char*>(moduleAddress + textInfo.offset);
+  const char* textEnd = textStart + textInfo.size;
+
+  for (const char* p = textStart; p != textEnd - (sizeof(sig) - 1); p++) {
+    bool isMatch = true;
+    for (std::size_t i = 0; i < sizeof(sig) - 1; i++) {
+      if ((p[i] & mask[i]) != (sig[i] & mask[i])) {
+        isMatch = false;
+        break;
+      }
+    }
+
+    if (!isMatch)
+      continue;
+
+    const auto scanRes = std::bit_cast<std::uintptr_t>(p);
+    const auto appPtrAddress =
+        scanRes + 0x7 + *reinterpret_cast<const std::int32_t*>(scanRes + 0x3);
+    const auto appPtr = *std::bit_cast<void**>(appPtrAddress);
+
+    if (appPtr == nullptr)
+      return std::nullopt;
+
+    const auto vtableAddress = *static_cast<std::uintptr_t*>(appPtr);
+    const auto onFrameEntry = vtableAddress + 4 * sizeof(std::uintptr_t);
+    return std::bit_cast<GameFrameProc*>(onFrameEntry);
+  }
+
+  return std::nullopt;
+}
+
 bool hookGame() {
   static_assert(sizeof(std::uint64_t) == sizeof(std::uintptr_t));
 
-  constexpr static auto frameProcOffsets =
-      std::to_array<std::uintptr_t>({0x3E8, 0x0, 0x20});
+  const auto textInfo = findTextSectionInfo();
+  const auto frameProcPtrOpt = findFrameProc(textInfo);
 
-  std::uintptr_t pointerStruct = moduleAddress + gameInfo->pointerStructOffset;
-
-  if (auto ptr = followPointerChain(pointerStruct, frameProcOffsets)) {
-    frameProcPtr = reinterpret_cast<GameFrameProc*>(*ptr);
-  } else {
+  if (!frameProcPtrOpt.has_value()) {
     return false;
   }
 
+  frameProcPtr = frameProcPtrOpt.value();
   if (*frameProcPtr == nullptr)
     return false;
 
@@ -241,17 +313,16 @@ BOOL WINAPI DllMain([[maybe_unused]] HINSTANCE hinstDLL, DWORD fdwReason,
 }
 
 extern "C" __declspec(dllexport) HRESULT WINAPI
-    DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf,
-                       LPVOID* ppvOut, LPVOID punkOuter) {
+DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, LPCVOID riidltf,
+                   LPVOID* ppvOut, LPVOID punkOuter) {
   return createProc(hinst, dwVersion, riidltf, ppvOut, punkOuter);
 }
 
-extern "C" __declspec(dllexport) BOOL WINAPI
-    MiniDumpWriteDump(HANDLE hProcess, DWORD ProcessId, HANDLE hFile,
-                      MINIDUMP_TYPE DumpType,
-                      PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-                      PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
-                      PMINIDUMP_CALLBACK_INFORMATION CallbackParam) {
+extern "C" __declspec(dllexport) BOOL WINAPI MiniDumpWriteDump(
+    HANDLE hProcess, DWORD ProcessId, HANDLE hFile, MINIDUMP_TYPE DumpType,
+    PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+    PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+    PMINIDUMP_CALLBACK_INFORMATION CallbackParam) {
   return writeDumpProc(hProcess, ProcessId, hFile, DumpType, ExceptionParam,
                        UserStreamParam, CallbackParam);
 }
