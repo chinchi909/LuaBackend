@@ -57,6 +57,8 @@ set(SOURCE
     src/DCInstance.h
     src/LuaBackend.h
     src/MemoryLib.h
+    src/kh2.cpp
+    src/kh2.h
 )
 
 add_custom_target(clang-format
